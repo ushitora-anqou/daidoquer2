@@ -7,6 +7,8 @@ defmodule Daidoquer2.Guild do
   alias Nostrum.Voice
   alias Nostrum.Cache.Me
 
+  @message_length_limit 100
+
   #####
   # External API
 
@@ -26,12 +28,20 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:discord_message, msg})
   end
 
+  def cast_bare_message(pid, text) do
+    GenServer.cast(pid, {:bare_message, text})
+  end
+
   def notify_speaking_ended(pid) do
     GenServer.cast(pid, :speaking_ended)
   end
 
   def notify_voice_state_updated(pid, voice_state) do
     GenServer.cast(pid, {:voice_state_updated, voice_state})
+  end
+
+  def notify_voice_ready(pid) do
+    GenServer.cast(pid, :voice_ready)
   end
 
   #####
@@ -62,17 +72,34 @@ defmodule Daidoquer2.Guild do
 
     prev = state.voice_state
     cur = voice_state
+    my_channel = get_voice_channel_of(state.guild_id, Me.get().id)
 
     cond do
-      (prev == nil or prev.channel_id == nil) and cur.channel_id != nil ->
-        # Joined channel
-        GenServer.cast(self(), {:bare_message, "こんにちは、daidoquer2です。やさしくしてね。"})
+      prev == nil or my_channel == nil ->
+        nil
+
+      prev.channel_id != cur.channel_id and cur.channel_id == my_channel ->
+        # Someone joined the channel
+        {:ok, name} = get_display_name(voice_state.guild_id, voice_state.member.user.id)
+        Logger.debug("Joined (#{state.guild_id}) #{name}")
+        cast_bare_message(self(), "#{name}さんが参加しました。")
+
+      prev.channel_id != cur.channel_id and prev.channel_id == my_channel ->
+        # Someone left the channel
+        {:ok, name} = get_display_name(voice_state.guild_id, voice_state.member.user.id)
+        Logger.debug("Left (#{state.guild_id}) #{name}")
+        cast_bare_message(self(), "#{name}さんが離れました。")
 
       true ->
         nil
     end
 
     {:noreply, %{state | voice_state: voice_state}}
+  end
+
+  def handle_cast(:voice_ready, state) do
+    cast_bare_message(self(), "こんにちは、daidoquer2です。やさしくしてね。")
+    {:noreply, state}
   end
 
   def handle_cast({:join, msg}, state) do
@@ -111,24 +138,11 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast({:discord_message, msg}, state) do
     true = msg.guild_id == state.guild_id
-
-    unless Voice.ready?(state.guild_id) do
-      # Not joined. Just ignore.
-      {:noreply, state}
-    else
-      # FIXME: format msg.content
-      start_speaking_or_queue(state, msg.content)
-    end
+    ignore_or_start_speaking_or_queue(state, msg.content)
   end
 
   def handle_cast({:bare_message, text}, state) do
-    unless Voice.ready?(state.guild_id) do
-      # Not joined. Just ignore.
-      Logger.debug("#{text}")
-      {:noreply, state}
-    else
-      start_speaking_or_queue(state, text)
-    end
+    ignore_or_start_speaking_or_queue(state, text)
   end
 
   def handle_cast(:speaking_ended, state) do
@@ -136,14 +150,7 @@ defmodule Daidoquer2.Guild do
       File.rm(state.tmpfile_path)
     end
 
-    case :queue.out(state.msg_queue) do
-      {:empty, _} ->
-        {:noreply, %{state | tmpfile_path: nil}}
-
-      {{:value, msg}, msg_queue} ->
-        tmpfile_path = speak(state.guild_id, msg)
-        {:noreply, %{state | tmpfile_path: tmpfile_path, msg_queue: msg_queue}}
-    end
+    speak_message_in_queue(state)
   end
 
   defp get_voice_channel_of(guild_id, user_id) do
@@ -154,30 +161,117 @@ defmodule Daidoquer2.Guild do
     |> Map.get(:channel_id)
   end
 
-  defp start_speaking_or_queue(state, text) do
+  defp get_display_name(guild_id, user_id) do
+    case Nostrum.Api.get_guild_member(guild_id, user_id) do
+      {:ok, member} -> {:ok, member.nick || member.user.username}
+      error -> error
+    end
+  end
+
+  defp replace_mention_with_display_name(text, guild_id) do
+    Regex.replace(~r/<@!?([0-9]+)>/, text, fn whole, user_id_str ->
+      {user_id, ""} = user_id_str |> Integer.parse()
+
+      case get_display_name(guild_id, user_id) do
+        {:ok, name} -> "@" <> name
+        {:error, _} -> whole
+      end
+    end)
+  end
+
+  defp sanitize_message(text) do
+    # For characters Unicode can represent but Shift-JIS cannot
+    text = String.replace(text, "ゔ", "ヴ")
+    text = String.replace(text, "ゕ", "ヵ")
+    text = String.replace(text, "ゖ", "ヶ")
+    text = String.replace(text, "ヷ", "ヴァ")
+    text = String.replace(text, "〜", "ー")
+
+    # For URL
+    text =
+      Regex.replace(
+        ~r/(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:\/?#[\]@!\$%&'\(\)\*\+,;=.]+/,
+        text,
+        "。ちくわ大明神。"
+      )
+
+    # For code
+    text = Regex.replace(~r/```.+```/, text, "。ちくわ大明神。")
+
+    # For custom emoji
+    text = Regex.replace(~r/<:([^:]+):[0-9]+>/, text, "\\1")
+
+    # For letters that cannot be represetned in Shift-JIS
+    text = text |> MbcsRs.encode!("SJIS") |> MbcsRs.decode!("SJIS")
+
+    # For length limit
+    text =
+      if String.length(text) <= @message_length_limit do
+        text
+      else
+        String.slice(text, 0, @message_length_limit) <> "。以下ちくわ大明神。"
+      end
+
+    text |> String.trim()
+  end
+
+  defp ignore_or_start_speaking_or_queue(state, text) do
+    Logger.debug("Incoming (#{state.guild_id}): #{text}")
+    text = text |> replace_mention_with_display_name(state.guild_id) |> sanitize_message
+
     cond do
+      not Voice.ready?(state.guild_id) ->
+        # Not joined. Just ignore.
+        {:noreply, state}
+
+      String.length(text) == 0 ->
+        # Nothing to speak. Just ignore.
+        {:noreply, state}
+
       Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
         # Currently speaking. Queue the message.
         {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
 
       :queue.is_empty(state.msg_queue) ->
         # Currently not speaking and the queue is empty. Speak the message.
-        tmpfile_path = speak(state.guild_id, text)
-        {:noreply, %{state | tmpfile_path: tmpfile_path}}
+        speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
     end
   end
 
-  defp speak(guild_id, text) do
-    true = Voice.ready?(guild_id)
+  defp speak_message_in_queue(state) do
+    case :queue.out(state.msg_queue) do
+      {:empty, _} ->
+        {:noreply, %{state | tmpfile_path: nil}}
 
-    res = HTTPoison.post!("http://localhost:8399", text)
+      {{:value, msg}, msg_queue} ->
+        case start_speaking(state.guild_id, msg) do
+          {:ok, tmpfile_path} ->
+            {:noreply, %{state | tmpfile_path: tmpfile_path, msg_queue: msg_queue}}
 
-    # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
-    {:ok, fd, file_path} = Temp.open("daidoquer2")
-    IO.binwrite(fd, res.body)
-    File.close(fd)
+          {:error, _} ->
+            speak_message_in_queue(%{state | msg_queue: msg_queue})
+        end
+    end
+  end
 
-    :ok = Voice.play(guild_id, file_path)
-    file_path
+  defp start_speaking(guild_id, text) do
+    try do
+      true = Voice.ready?(guild_id)
+
+      res = HTTPoison.post!("http://localhost:8399", text)
+
+      # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
+      {:ok, fd, file_path} = Temp.open("daidoquer2")
+      IO.binwrite(fd, res.body)
+      File.close(fd)
+
+      Logger.debug("Speaking (#{guild_id}): #{text}")
+      :ok = Voice.play(guild_id, file_path)
+      {:ok, file_path}
+    rescue
+      e ->
+        Logger.error("Can't speak #{inspect(text)} (#{guild_id}): #{inspect(e)}")
+        {:error, e}
+    end
   end
 end

@@ -35,12 +35,17 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
-    Logger.debug("voice state update #{inspect(state)}")
+    Logger.debug("VOICE_STATE_UPDATE: #{inspect(state)}")
     Daidoquer2.GuildRegistry.cast(state.guild_id, :notify_voice_state_updated, [state])
   end
 
+  def handle_event({:VOICE_READY, state, _}) do
+    Logger.debug("VOICE_READY: #{inspect(state)}")
+    Daidoquer2.GuildRegistry.cast(state.guild_id, :notify_voice_ready)
+  end
+
   def handle_event(event) do
-    Logger.debug(inspect(event))
+    Logger.debug("DISCORD EVENT: #{inspect(event)}")
     :noop
   end
 end
