@@ -6,7 +6,7 @@ defmodule Daidoquer2.MessageSanitizer do
     text
     |> replace_with_alternatives
     |> replace_url_with_dummy
-    |> replace_code_with_dummy
+    |> replace_code_block_with_dummy
     |> replace_custom_emoji_with_name
     |> replace_emoji_with_name
     |> replace_non_sjis_with_empty
@@ -28,8 +28,8 @@ defmodule Daidoquer2.MessageSanitizer do
     Regex.replace(re, text, @dummy)
   end
 
-  defp replace_code_with_dummy(text) do
-    re = ~r/```.+```/
+  defp replace_code_block_with_dummy(text) do
+    re = ~r/```.+```/s
     Regex.replace(re, text, @dummy)
   end
 
