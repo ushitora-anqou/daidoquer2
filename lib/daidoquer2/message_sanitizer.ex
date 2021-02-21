@@ -25,7 +25,7 @@ defmodule Daidoquer2.MessageSanitizer do
   end
 
   defp replace_url_with_dummy(text) do
-    re = ~r/(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:\/?#[\]@!\$%&'\(\)\*\+,;=.]+/
+    re = ~r/(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:\/?#[\]@!\$%&'\(\)\*\+,;=.]+/u
     Regex.replace(re, text, @dummy)
   end
 
