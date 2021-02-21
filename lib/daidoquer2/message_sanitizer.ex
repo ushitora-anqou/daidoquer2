@@ -3,16 +3,22 @@ defmodule Daidoquer2.MessageSanitizer do
   @message_length_limit 100
 
   def sanitize(text) do
-    text
-    |> replace_with_alternatives
-    |> replace_url_with_dummy
-    |> replace_code_block_with_dummy
-    |> replace_custom_emoji_with_name
-    |> replace_emoji_with_name
-    |> unify_punctuations
-    |> replace_non_sjis_with_empty
-    |> omit_if_too_long
-    |> String.trim()
+    try do
+      {:ok,
+       text
+       |> replace_with_alternatives
+       |> replace_url_with_dummy
+       |> replace_code_block_with_dummy
+       |> replace_custom_emoji_with_name
+       |> replace_emoji_with_name
+       |> unify_punctuations
+       |> replace_non_sjis_with_empty
+       |> omit_if_too_long
+       |> String.trim()}
+    rescue
+      e ->
+        {:error, e}
+    end
   end
 
   defp replace_with_alternatives(text) do

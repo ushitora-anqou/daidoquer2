@@ -186,12 +186,16 @@ defmodule Daidoquer2.Guild do
     else
       Logger.debug("Incoming (#{state.guild_id}): #{text}")
 
-      text =
+      {san_ok, text} =
         text
         |> replace_mention_with_display_name(state.guild_id)
         |> Daidoquer2.MessageSanitizer.sanitize()
 
       cond do
+        san_ok != :ok ->
+          # Failed to sanitize the message. Just ignore.
+          {:noreply, state}
+
         String.length(text) == 0 ->
           # Nothing to speak. Just ignore.
           {:noreply, state}
@@ -203,6 +207,10 @@ defmodule Daidoquer2.Guild do
         :queue.is_empty(state.msg_queue) ->
           # Currently not speaking and the queue is empty. Speak the message.
           speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+
+        true ->
+          Logger.error("Invalid state; not currently speaking, but queue is not empty.")
+          {:noreply, state}
       end
     end
   end
