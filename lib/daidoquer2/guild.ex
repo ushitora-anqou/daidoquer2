@@ -49,7 +49,15 @@ defmodule Daidoquer2.Guild do
 
   def init(guild_id) do
     GenServer.cast(self(), :set_pid)
-    {:ok, %{guild_id: guild_id, msg_queue: :queue.new(), tmpfile_path: nil, voice_state: nil}}
+
+    {:ok,
+     %{
+       guild_id: guild_id,
+       msg_queue: :queue.new(),
+       tmpfile_path: nil,
+       voice_state: nil,
+       leaving: false
+     }}
   end
 
   def handle_cast(:set_pid, state) do
@@ -132,8 +140,24 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast(:leave, state) do
-    Voice.leave_channel(state.guild_id)
-    {:noreply, state}
+    cond do
+      not Voice.ready?(state.guild_id) ->
+        # Not joined. Just ignore.
+        {:noreply, state}
+
+      state.leaving ->
+        # Already started to leave. Just ignore.
+        {:noreply, state}
+
+      true ->
+        if state.tmpfile_path != nil do
+          Voice.stop(state.guild_id)
+        end
+
+        state = %{state | msg_queue: :queue.new()}
+        {:noreply, state} = ignore_or_start_speaking_or_queue(state, "。お相手はdaidoquer2でした。またね。")
+        {:noreply, %{state | leaving: true}}
+    end
   end
 
   def handle_cast({:discord_message, msg}, state) do
@@ -150,7 +174,13 @@ defmodule Daidoquer2.Guild do
       File.rm(state.tmpfile_path)
     end
 
-    speak_message_in_queue(state)
+    if state.leaving && :queue.is_empty(state.msg_queue) do
+      # Finished speaking farewell. Leave now.
+      Voice.leave_channel(state.guild_id)
+      {:noreply, %{state | tmpfile_path: nil, leaving: false}}
+    else
+      speak_message_in_queue(state)
+    end
   end
 
   defp get_voice_channel_of(guild_id, user_id) do
@@ -180,38 +210,44 @@ defmodule Daidoquer2.Guild do
   end
 
   defp ignore_or_start_speaking_or_queue(state, text) do
-    unless Voice.ready?(state.guild_id) do
-      # Not joined. Just ignore.
-      {:noreply, state}
-    else
-      Logger.debug("Incoming (#{state.guild_id}): #{text}")
+    cond do
+      not Voice.ready?(state.guild_id) ->
+        # Not joined. Just ignore.
+        {:noreply, state}
 
-      {san_ok, text} =
-        text
-        |> replace_mention_with_display_name(state.guild_id)
-        |> Daidoquer2.MessageSanitizer.sanitize()
+      state.leaving ->
+        # Leaving now, so don't accept new messages.
+        {:noreply, state}
 
-      cond do
-        san_ok != :ok ->
-          # Failed to sanitize the message. Just ignore.
-          {:noreply, state}
+      true ->
+        Logger.debug("Incoming (#{state.guild_id}): #{text}")
 
-        String.length(text) == 0 ->
-          # Nothing to speak. Just ignore.
-          {:noreply, state}
+        {san_ok, text} =
+          text
+          |> replace_mention_with_display_name(state.guild_id)
+          |> Daidoquer2.MessageSanitizer.sanitize()
 
-        Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
-          # Currently speaking. Queue the message.
-          {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
+        cond do
+          san_ok != :ok ->
+            # Failed to sanitize the message. Just ignore.
+            {:noreply, state}
 
-        :queue.is_empty(state.msg_queue) ->
-          # Currently not speaking and the queue is empty. Speak the message.
-          speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+          String.length(text) == 0 ->
+            # Nothing to speak. Just ignore.
+            {:noreply, state}
 
-        true ->
-          Logger.error("Invalid state; not currently speaking, but queue is not empty.")
-          {:noreply, state}
-      end
+          Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
+            # Currently speaking. Queue the message.
+            {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
+
+          :queue.is_empty(state.msg_queue) ->
+            # Currently not speaking and the queue is empty. Speak the message.
+            speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+
+          true ->
+            Logger.error("Invalid state; not currently speaking, but queue is not empty.")
+            {:noreply, state}
+        end
     end
   end
 
