@@ -180,29 +180,30 @@ defmodule Daidoquer2.Guild do
   end
 
   defp ignore_or_start_speaking_or_queue(state, text) do
-    Logger.debug("Incoming (#{state.guild_id}): #{text}")
+    unless Voice.ready?(state.guild_id) do
+      # Not joined. Just ignore.
+      {:noreply, state}
+    else
+      Logger.debug("Incoming (#{state.guild_id}): #{text}")
 
-    text =
-      text
-      |> replace_mention_with_display_name(state.guild_id)
-      |> MessageSanitizer.sanitize()
+      text =
+        text
+        |> replace_mention_with_display_name(state.guild_id)
+        |> MessageSanitizer.sanitize()
 
-    cond do
-      not Voice.ready?(state.guild_id) ->
-        # Not joined. Just ignore.
-        {:noreply, state}
+      cond do
+        String.length(text) == 0 ->
+          # Nothing to speak. Just ignore.
+          {:noreply, state}
 
-      String.length(text) == 0 ->
-        # Nothing to speak. Just ignore.
-        {:noreply, state}
+        Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
+          # Currently speaking. Queue the message.
+          {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
 
-      Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
-        # Currently speaking. Queue the message.
-        {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
-
-      :queue.is_empty(state.msg_queue) ->
-        # Currently not speaking and the queue is empty. Speak the message.
-        speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+        :queue.is_empty(state.msg_queue) ->
+          # Currently not speaking and the queue is empty. Speak the message.
+          speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+      end
     end
   end
 
