@@ -179,45 +179,13 @@ defmodule Daidoquer2.Guild do
     end)
   end
 
-  defp sanitize_message(text) do
-    # For characters Unicode can represent but Shift-JIS cannot
-    text = String.replace(text, "ゔ", "ヴ")
-    text = String.replace(text, "ゕ", "ヵ")
-    text = String.replace(text, "ゖ", "ヶ")
-    text = String.replace(text, "ヷ", "ヴァ")
-    text = String.replace(text, "〜", "ー")
-
-    # For URL
-    text =
-      Regex.replace(
-        ~r/(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:\/?#[\]@!\$%&'\(\)\*\+,;=.]+/,
-        text,
-        "。ちくわ大明神。"
-      )
-
-    # For code
-    text = Regex.replace(~r/```.+```/, text, "。ちくわ大明神。")
-
-    # For custom emoji
-    text = Regex.replace(~r/<:([^:]+):[0-9]+>/, text, "\\1")
-
-    # For letters that cannot be represetned in Shift-JIS
-    text = text |> MbcsRs.encode!("SJIS") |> MbcsRs.decode!("SJIS")
-
-    # For length limit
-    text =
-      if String.length(text) <= @message_length_limit do
-        text
-      else
-        String.slice(text, 0, @message_length_limit) <> "。以下ちくわ大明神。"
-      end
-
-    text |> String.trim()
-  end
-
   defp ignore_or_start_speaking_or_queue(state, text) do
     Logger.debug("Incoming (#{state.guild_id}): #{text}")
-    text = text |> replace_mention_with_display_name(state.guild_id) |> sanitize_message
+
+    text =
+      text
+      |> replace_mention_with_display_name(state.guild_id)
+      |> MessageSanitizer.sanitize()
 
     cond do
       not Voice.ready?(state.guild_id) ->
