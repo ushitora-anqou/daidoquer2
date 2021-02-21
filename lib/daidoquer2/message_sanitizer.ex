@@ -1,4 +1,4 @@
-defmodule MessageSanitizer do
+defmodule Daidoquer2.MessageSanitizer do
   @dummy "。ちくわ大明神。"
   @message_length_limit 100
 

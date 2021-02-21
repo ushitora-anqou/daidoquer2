@@ -189,7 +189,7 @@ defmodule Daidoquer2.Guild do
       text =
         text
         |> replace_mention_with_display_name(state.guild_id)
-        |> MessageSanitizer.sanitize()
+        |> Daidoquer2.MessageSanitizer.sanitize()
 
       cond do
         String.length(text) == 0 ->
