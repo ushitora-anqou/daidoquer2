@@ -9,6 +9,7 @@ defmodule Daidoquer2.MessageSanitizer do
     |> replace_code_block_with_dummy
     |> replace_custom_emoji_with_name
     |> replace_emoji_with_name
+    |> unify_punctuations
     |> replace_non_sjis_with_empty
     |> omit_if_too_long
     |> String.trim()
@@ -46,6 +47,14 @@ defmodule Daidoquer2.MessageSanitizer do
         [] -> ""
       end
     end)
+  end
+
+  defp unify_punctuations(text) do
+    text
+    |> String.replace(~r/[,、]+/u, "、")
+    |> String.replace(~r/[.。]+/u, "。")
+    |> String.replace(~r/[!！][!！?？]+/u, "！")
+    |> String.replace(~r/[?？][!！?？]+/u, "？")
   end
 
   defp replace_non_sjis_with_empty(text) do
