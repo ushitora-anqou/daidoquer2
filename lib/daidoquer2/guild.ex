@@ -132,7 +132,7 @@ defmodule Daidoquer2.Guild do
         true ->
           # Really join
           :ok = Voice.join_channel(state.guild_id, voice_channel_id)
-          channel = Api.get_channel!(msg.channel_id)
+          channel = Api.get_channel!(voice_channel_id)
           Api.create_message(msg.channel_id, "Joined #{channel.name}")
           {:noreply, %{state | tmpfile_path: nil, msg_queue: :queue.new()}}
       end
