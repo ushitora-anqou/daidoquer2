@@ -8,6 +8,7 @@ defmodule Daidoquer2.MessageSanitizer do
     |> replace_url_with_dummy
     |> replace_code_with_dummy
     |> replace_custom_emoji_with_name
+    |> replace_emoji_with_name
     |> replace_non_sjis_with_empty
     |> omit_if_too_long
     |> String.trim()
@@ -35,6 +36,16 @@ defmodule Daidoquer2.MessageSanitizer do
   defp replace_custom_emoji_with_name(text) do
     re = ~r/<:([^:]+):[0-9]+>/
     Regex.replace(re, text, "\\1")
+  end
+
+  defp replace_emoji_with_name(text) do
+    text
+    |> Emojix.replace(fn e ->
+      case e.shortcodes do
+        [shortcode | _] -> shortcode
+        [] -> ""
+      end
+    end)
   end
 
   defp replace_non_sjis_with_empty(text) do

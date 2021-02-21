@@ -29,7 +29,8 @@ defmodule Daidoquer2.MixProject do
       {:httpoison, "~> 1.8.0"},
       {:temp, "~> 0.4"},
       {:gproc, "~> 0.8.0"},
-      {:mbcs_rs, "~> 0.1"}
+      {:mbcs_rs, "~> 0.1"},
+      {:emojix, "~> 0.3"}
     ]
   end
 end
