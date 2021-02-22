@@ -284,7 +284,7 @@ defmodule Daidoquer2.Guild do
       File.close(fd)
 
       Logger.debug("Speaking (#{guild_id}): #{text}")
-      :ok = Voice.play(guild_id, file_path)
+      :ok = Voice.play(guild_id, file_path, :url, realtime: false)
       {:ok, file_path}
     rescue
       e ->
