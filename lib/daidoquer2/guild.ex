@@ -85,7 +85,13 @@ defmodule Daidoquer2.Guild do
            c <- voice_state,
            my_user_id <- Me.get().id,
            ch <- get_voice_channel_of(state.guild_id, my_user_id) do
-        joining = p != nil and ch != nil and p.channel_id != c.channel_id and c.channel_id == ch
+        joining =
+          if p == nil do
+            ch != nil and c.channel_id == ch
+          else
+            ch != nil and p.channel_id != c.channel_id and c.channel_id == ch
+          end
+
         leaving = p != nil and ch != nil and p.channel_id != c.channel_id and p.channel_id == ch
         about_me = voice_state.user_id == my_user_id
         my_joining = about_me and joining
