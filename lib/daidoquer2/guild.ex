@@ -37,10 +37,12 @@ defmodule Daidoquer2.Guild do
   end
 
   def notify_voice_state_updated(pid, voice_state) do
+    Logger.debug("VOICE_STATE_UPDATE: #{inspect(voice_state)}")
     GenServer.cast(pid, {:voice_state_updated, voice_state})
   end
 
-  def notify_voice_ready(pid) do
+  def notify_voice_ready(pid, state) do
+    Logger.debug("VOICE_READY: #{inspect(state)}")
     GenServer.cast(pid, :voice_ready)
   end
 
@@ -78,36 +80,51 @@ defmodule Daidoquer2.Guild do
   def handle_cast({:voice_state_updated, voice_state}, state) do
     true = voice_state.guild_id == state.guild_id
 
-    prev = state.voice_states |> Map.get(voice_state.user_id)
-    cur = voice_state
-    my_channel = get_voice_channel_of(state.guild_id, Me.get().id)
+    {joining, leaving, my_joining, my_leaving} =
+      with p <- state.voice_states |> Map.get(voice_state.user_id),
+           c <- voice_state,
+           my_user_id <- Me.get().id,
+           ch <- get_voice_channel_of(state.guild_id, my_user_id) do
+        joining = p != nil and ch != nil and p.channel_id != c.channel_id and c.channel_id == ch
+        leaving = p != nil and ch != nil and p.channel_id != c.channel_id and p.channel_id == ch
+        about_me = voice_state.user_id == my_user_id
+        my_joining = about_me and joining
+        my_leaving = about_me and (leaving or ch == nil)
+        {joining, leaving, my_joining, my_leaving}
+      end
+
+    new_state = %{
+      state
+      | voice_states: Map.put(state.voice_states, voice_state.user_id, voice_state)
+    }
 
     cond do
-      prev == nil or my_channel == nil ->
-        nil
+      my_joining ->
+        # If _I_ am joining, then ignore.
+        {:noreply, new_state}
 
-      voice_state.user_id == Me.get().id ->
-        # If me, ignore.
-        nil
+      my_leaving ->
+        # If _I_ am leaving the channel, then shutdown this process.
+        Logger.debug("Stopping #{state.guild_id}")
+        {:stop, :normal, new_state}
 
-      prev.channel_id != cur.channel_id and cur.channel_id == my_channel ->
+      joining ->
         # Someone joined the channel
         {:ok, name} = get_display_name(voice_state.guild_id, voice_state.user_id)
         Logger.debug("Joined (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが参加しました。")
+        {:noreply, new_state}
 
-      prev.channel_id != cur.channel_id and prev.channel_id == my_channel ->
+      leaving ->
         # Someone left the channel
         {:ok, name} = get_display_name(voice_state.guild_id, voice_state.user_id)
         Logger.debug("Left (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが離れました。")
+        {:noreply, new_state}
 
       true ->
-        nil
+        {:noreply, new_state}
     end
-
-    state = %{state | voice_states: Map.put(state.voice_states, voice_state.user_id, voice_state)}
-    {:noreply, state}
   end
 
   def handle_cast(:voice_ready, state) do
@@ -122,24 +139,41 @@ defmodule Daidoquer2.Guild do
     else
       voice_channel_id = get_voice_channel_of(state.guild_id, msg.author.id)
 
+      new_state = %{
+        state
+        | voice_states:
+            state.guild_id
+            |> Nostrum.Cache.GuildCache.get!()
+            |> Map.get(:voice_states)
+            |> Map.new(fn s -> {s.user_id, s} end)
+      }
+
+      Logger.debug(
+        state.guild_id
+        |> Nostrum.Cache.GuildCache.get!()
+        |> Map.get(:voice_states)
+        |> Map.new(fn s -> {s.user_id, s} end)
+        |> inspect
+      )
+
       cond do
         voice_channel_id == nil ->
           # The user doesn't belong to VC
           Api.create_message(msg.channel_id, "Call from VC")
-          {:noreply, state}
+          {:noreply, new_state}
 
         voice_channel_id == get_voice_channel_of(state.guild_id, Me.get().id) ->
           # Already joined
           channel = Api.get_channel!(msg.channel_id)
           Api.create_message(msg.channel_id, "Already joined #{channel.name}")
-          {:noreply, state}
+          {:noreply, new_state}
 
         true ->
           # Really join
           :ok = Voice.join_channel(state.guild_id, voice_channel_id)
           channel = Api.get_channel!(voice_channel_id)
           Api.create_message(msg.channel_id, "Joined #{channel.name}")
-          {:noreply, %{state | tmpfile_path: nil, msg_queue: :queue.new()}}
+          {:noreply, %{new_state | tmpfile_path: nil, msg_queue: :queue.new()}}
       end
     end
   end

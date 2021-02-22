@@ -19,10 +19,10 @@ defmodule Daidoquer2.DiscordEventConsumer do
           Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
 
         "!ddq2 leave" ->
-          Daidoquer2.GuildRegistry.cast(gid, :leave_channel)
+          Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel)
 
         _ ->
-          Daidoquer2.GuildRegistry.cast(gid, :cast_message, [msg])
+          Daidoquer2.GuildRegistry.cast_if_exists(gid, :cast_message, [msg])
       end
     end
   end
@@ -31,21 +31,19 @@ defmodule Daidoquer2.DiscordEventConsumer do
         {:VOICE_SPEAKING_UPDATE,
          %Nostrum.Struct.Event.SpeakingUpdate{guild_id: guild_id, speaking: false}, _}
       ) do
-    Daidoquer2.GuildRegistry.cast(guild_id, :notify_speaking_ended)
+    Daidoquer2.GuildRegistry.cast_if_exists(guild_id, :notify_speaking_ended)
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
-    Logger.debug("VOICE_STATE_UPDATE: #{inspect(state)}")
-    Daidoquer2.GuildRegistry.cast(state.guild_id, :notify_voice_state_updated, [state])
+    Daidoquer2.GuildRegistry.cast_if_exists(state.guild_id, :notify_voice_state_updated, [state])
   end
 
   def handle_event({:VOICE_READY, state, _}) do
-    Logger.debug("VOICE_READY: #{inspect(state)}")
-    Daidoquer2.GuildRegistry.cast(state.guild_id, :notify_voice_ready)
+    Daidoquer2.GuildRegistry.cast_if_exists(state.guild_id, :notify_voice_ready, [state])
   end
 
   def handle_event(event) do
-    Logger.debug("DISCORD EVENT: #{inspect(event)}")
+    # Logger.debug("DISCORD EVENT: #{inspect(event)}")
     :noop
   end
 end

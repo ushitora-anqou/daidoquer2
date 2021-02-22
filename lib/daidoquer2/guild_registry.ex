@@ -17,6 +17,17 @@ defmodule Daidoquer2.GuildRegistry do
     end
   end
 
+  def cast_if_exists(guild_id, funname, args \\ []) do
+    case where(guild_id) do
+      :undefined ->
+        {:error, :guild_not_exists}
+
+      pid ->
+        apply_guild(pid, funname, args)
+        :ok
+    end
+  end
+
   def where(guild_id) do
     :gproc.where(get_gproc_id_for_guild(guild_id))
   end
