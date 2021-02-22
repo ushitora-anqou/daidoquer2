@@ -86,6 +86,10 @@ defmodule Daidoquer2.Guild do
       prev == nil or my_channel == nil ->
         nil
 
+      voice_state.user_id == Me.get().id ->
+        # If me, ignore.
+        nil
+
       prev.channel_id != cur.channel_id and cur.channel_id == my_channel ->
         # Someone joined the channel
         {:ok, name} = get_display_name(voice_state.guild_id, voice_state.user_id)
