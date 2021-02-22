@@ -31,7 +31,7 @@ defmodule Daidoquer2.MixProject do
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       # {:nostrum, "~> 0.4"},
-      {:nostrum, path: "../nostrum", override: true},
+      {:nostrum, git: "https://github.com/ushitora-anqou/nostrum.git", override: true},
       {:httpoison, "~> 1.8.0"},
       {:temp, "~> 0.4"},
       {:gproc, "~> 0.8.0"},
