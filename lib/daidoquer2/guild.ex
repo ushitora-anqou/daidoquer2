@@ -148,14 +148,6 @@ defmodule Daidoquer2.Guild do
             |> Map.new(fn s -> {s.user_id, s} end)
       }
 
-      Logger.debug(
-        state.guild_id
-        |> Nostrum.Cache.GuildCache.get!()
-        |> Map.get(:voice_states)
-        |> Map.new(fn s -> {s.user_id, s} end)
-        |> inspect
-      )
-
       cond do
         voice_channel_id == nil ->
           # The user doesn't belong to VC
