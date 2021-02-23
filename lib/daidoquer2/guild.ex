@@ -6,6 +6,8 @@ defmodule Daidoquer2.Guild do
   alias Nostrum.Api
   alias Nostrum.Voice
   alias Nostrum.Cache.Me
+  alias Nostrum.Cache.GuildCache
+  alias Nostrum.Cache.UserCache
 
   @message_length_limit 100
 
@@ -116,16 +118,22 @@ defmodule Daidoquer2.Guild do
 
       joining ->
         # Someone joined the channel
-        {:ok, name} = get_display_name(voice_state.guild_id, voice_state.user_id)
+        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
         Logger.debug("Joined (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが参加しました。")
+        Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
         {:noreply, new_state}
 
       leaving ->
         # Someone left the channel
-        {:ok, name} = get_display_name(voice_state.guild_id, voice_state.user_id)
+        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
         Logger.debug("Left (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが離れました。")
+
+        if get_num_of_users_in_my_channel(state.guild_id) == 0 do
+          Daidoquer2.GuildKiller.set_timer(state.guild_id)
+        end
+
         {:noreply, new_state}
 
       true ->
@@ -149,7 +157,7 @@ defmodule Daidoquer2.Guild do
         state
         | voice_states:
             state.guild_id
-            |> Nostrum.Cache.GuildCache.get!()
+            |> GuildCache.get!()
             |> Map.get(:voice_states)
             |> Map.new(fn s -> {s.user_id, s} end)
       }
@@ -220,9 +228,21 @@ defmodule Daidoquer2.Guild do
     end
   end
 
+  defp get_num_of_users_in_my_channel(guild_id) do
+    my_channel = get_voice_channel_of(guild_id, Me.get().id)
+
+    guild_id
+    |> GuildCache.get!()
+    |> Map.get(:voice_states)
+    |> Enum.filter(fn v ->
+      v.channel_id == my_channel and not UserCache.get!(v.user_id).bot
+    end)
+    |> length
+  end
+
   defp get_voice_channel_of(guild_id, user_id) do
     guild_id
-    |> Nostrum.Cache.GuildCache.get!()
+    |> GuildCache.get!()
     |> Map.get(:voice_states)
     |> Enum.find(%{}, fn v -> v.user_id == user_id end)
     |> Map.get(:channel_id)

@@ -11,7 +11,8 @@ defmodule Daidoquer2.Application do
       # {Daidoquer2.Worker, arg}
       Daidoquer2.DiscordEventConsumer,
       Daidoquer2.GuildRegistry,
-      Daidoquer2.GuildSupervisor
+      Daidoquer2.GuildSupervisor,
+      Daidoquer2.GuildKiller
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
