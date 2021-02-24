@@ -30,7 +30,7 @@ defmodule Daidoquer2.GuildKiller do
   def handle_cast({:set_timer, guild_id}, state) do
     ref = make_ref()
     Process.send_after(self(), {:timeout, ref, guild_id}, @seconds_to_wait)
-    Logger.debug("Setting kill timer for #{guild_id}")
+    Logger.debug("Setting kill timer for #{guild_id} #{inspect(ref)}")
     {:noreply, Map.put(state, guild_id, ref)}
   end
 
@@ -45,11 +45,13 @@ defmodule Daidoquer2.GuildKiller do
       |> Map.get_and_update(guild_id, fn
         ^ref ->
           # The guild should be killed.
+          Logger.debug("GuildKiller will kill #{guild_id} #{inspect(ref)}")
           Daidoquer2.GuildRegistry.cast_if_exists(guild_id, :leave_channel)
           :pop
 
-        _ ->
-          :pop
+        current_ref ->
+          Logger.debug("GuildKiller skip #{guild_id} #{inspect(ref)} #{inspect(current_ref)}")
+          {current_ref, current_ref}
       end)
 
     {:noreply, new_state}
