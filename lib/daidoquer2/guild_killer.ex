@@ -30,10 +30,12 @@ defmodule Daidoquer2.GuildKiller do
   def handle_cast({:set_timer, guild_id}, state) do
     ref = make_ref()
     Process.send_after(self(), {:timeout, ref, guild_id}, @seconds_to_wait)
+    Logger.debug("Setting kill timer for #{guild_id}")
     {:noreply, Map.put(state, guild_id, ref)}
   end
 
   def handle_cast({:cancel_timer, guild_id}, state) do
+    Logger.debug("Cancelling kill timer for #{guild_id}")
     {:noreply, Map.delete(state, guild_id)}
   end
 
