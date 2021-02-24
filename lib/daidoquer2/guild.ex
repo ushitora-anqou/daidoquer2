@@ -245,7 +245,7 @@ defmodule Daidoquer2.Guild do
     |> get_guild!
     |> Map.get(:voice_states)
     |> Enum.filter(fn v ->
-      v.channel_id == my_channel and not get_user!(v.user_id).bot
+      v.channel_id == my_channel and get_user!(v.user_id).bot == true
     end)
     |> length
   end
