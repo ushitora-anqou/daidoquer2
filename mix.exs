@@ -7,13 +7,7 @@ defmodule Daidoquer2.MixProject do
       version: "0.1.1",
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      default_release: :daidoquer2,
-      releases: [
-        daidoquer2: [
-          steps: [:assemble, :tar]
-        ]
-      ]
+      deps: deps()
     ]
   end
 
@@ -36,7 +30,8 @@ defmodule Daidoquer2.MixProject do
       {:temp, "~> 0.4"},
       {:gproc, "~> 0.8.0"},
       {:mbcs_rs, "~> 0.1"},
-      {:emojix, "~> 0.3"}
+      {:emojix, "~> 0.3"},
+      {:distillery, "~> 2.0"}
     ]
   end
 end
