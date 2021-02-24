@@ -6,8 +6,6 @@ defmodule Daidoquer2.Guild do
   alias Nostrum.Api
   alias Nostrum.Voice
   alias Nostrum.Cache.Me
-  alias Nostrum.Cache.GuildCache
-  alias Nostrum.Cache.UserCache
 
   #####
   # External API
@@ -155,7 +153,7 @@ defmodule Daidoquer2.Guild do
         state
         | voice_states:
             state.guild_id
-            |> GuildCache.get!()
+            |> get_guild!
             |> Map.get(:voice_states)
             |> Map.new(fn s -> {s.user_id, s} end)
       }
@@ -226,21 +224,35 @@ defmodule Daidoquer2.Guild do
     end
   end
 
+  defp get_user!(user_id) do
+    case Nostrum.Cache.UserCache.get(user_id) do
+      {:ok, user} -> user
+      {:error, _} -> Nostrum.Api.get_user!(user_id)
+    end
+  end
+
+  defp get_guild!(guild_id) do
+    case Nostrum.Cache.GuildCache.get(guild_id) do
+      {:ok, user} -> user
+      {:error, _} -> Nostrum.Api.get_guild!(guild_id)
+    end
+  end
+
   defp get_num_of_users_in_my_channel(guild_id) do
     my_channel = get_voice_channel_of(guild_id, Me.get().id)
 
     guild_id
-    |> GuildCache.get!()
+    |> get_guild!
     |> Map.get(:voice_states)
     |> Enum.filter(fn v ->
-      v.channel_id == my_channel and not UserCache.get!(v.user_id).bot
+      v.channel_id == my_channel and not get_user!(v.user_id).bot
     end)
     |> length
   end
 
   defp get_voice_channel_of(guild_id, user_id) do
     guild_id
-    |> GuildCache.get!()
+    |> get_guild!
     |> Map.get(:voice_states)
     |> Enum.find(%{}, fn v -> v.user_id == user_id end)
     |> Map.get(:channel_id)
