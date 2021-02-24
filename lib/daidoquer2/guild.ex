@@ -9,8 +9,6 @@ defmodule Daidoquer2.Guild do
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Cache.UserCache
 
-  @message_length_limit 100
-
   #####
   # External API
 
