@@ -56,7 +56,8 @@ defmodule Daidoquer2.Guild do
        msg_queue: :queue.new(),
        tmpfile_path: nil,
        leaving: false,
-       voice_states: %{}
+       voice_states: %{},
+       tmpfile_basedir: System.get_env("TMPDIR", "/tmp")
      }}
   end
 
@@ -347,7 +348,7 @@ defmodule Daidoquer2.Guild do
         {:noreply, %{state | tmpfile_path: nil}}
 
       {{:value, msg}, msg_queue} ->
-        case start_speaking(state.guild_id, msg) do
+        case start_speaking(state.guild_id, msg, state.tmpfile_basedir) do
           {:ok, tmpfile_path} ->
             {:noreply, %{state | tmpfile_path: tmpfile_path, msg_queue: msg_queue}}
 
@@ -357,14 +358,14 @@ defmodule Daidoquer2.Guild do
     end
   end
 
-  defp start_speaking(guild_id, text) do
+  defp start_speaking(guild_id, text, basedir) do
     try do
       true = Voice.ready?(guild_id)
 
       res = HTTPoison.post!("http://localhost:8399", text)
 
       # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
-      {:ok, fd, file_path} = Temp.open("daidoquer2")
+      {:ok, fd, file_path} = Temp.open(%{prefix: "daidoquer2", basedir: basedir})
       IO.binwrite(fd, res.body)
       File.close(fd)
 
