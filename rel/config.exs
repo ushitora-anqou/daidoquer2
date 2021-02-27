@@ -30,7 +30,6 @@ environment :dev do
   # dev mode.
   set(dev_mode: true)
   set(include_erts: false)
-  set(cookie: "${ERLANG_COOKIE}")
 
   set(
     config_providers: [
@@ -48,7 +47,6 @@ end
 environment :prod do
   set(include_erts: true)
   set(include_src: false)
-  set(cookie: "${ERLANG_COOKIE}")
   set(vm_args: "rel/vm.args")
 
   set(
