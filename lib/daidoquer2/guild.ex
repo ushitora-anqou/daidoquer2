@@ -78,7 +78,7 @@ defmodule Daidoquer2.Guild do
   def handle_cast({:voice_state_updated, voice_state}, state) do
     true = voice_state.guild_id == state.guild_id
 
-    {joining, leaving, my_joining, my_leaving} =
+    {joining, leaving, my_joining, my_leaving, start_streaming, stop_streaming} =
       with p <- state.voice_states |> Map.get(voice_state.user_id),
            c <- voice_state,
            my_user_id <- Me.get().id,
@@ -94,7 +94,16 @@ defmodule Daidoquer2.Guild do
         about_me = voice_state.user_id == my_user_id
         my_joining = about_me and joining
         my_leaving = about_me and (leaving or ch == nil)
-        {joining, leaving, my_joining, my_leaving}
+
+        start_streaming =
+          p != nil and (not Map.has_key?(p, :self_stream) or not p.self_stream) and
+            (Map.has_key?(c, :self_stream) and c.self_stream)
+
+        stop_streaming =
+          p != nil and (Map.has_key?(p, :self_stream) and p.self_stream) and
+            (not Map.has_key?(c, :self_stream) or not c.self_stream)
+
+        {joining, leaving, my_joining, my_leaving, start_streaming, stop_streaming}
       end
 
     new_state = %{
@@ -130,6 +139,20 @@ defmodule Daidoquer2.Guild do
           Daidoquer2.GuildKiller.set_timer(state.guild_id)
         end
 
+        {:noreply, new_state}
+
+      start_streaming ->
+        # Someone started streaming
+        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        Logger.debug("Started streaming (#{state.guild_id}) #{name}")
+        cast_bare_message(self(), "#{name}さんがライブを始めました。")
+        {:noreply, new_state}
+
+      stop_streaming ->
+        # Someone stoped streaming
+        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        Logger.debug("Stoped streaming (#{state.guild_id}) #{name}")
+        cast_bare_message(self(), "#{name}さんがライブを終了しました。")
         {:noreply, new_state}
 
       true ->
