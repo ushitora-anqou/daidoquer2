@@ -7,3 +7,6 @@ config :nostrum,
   num_shards: :auto,
   ffmpeg: "/usr/bin/ffmpeg",
   youtubedl: "/usr/bin/youtube-dl"
+
+config :daidoquer2,
+  tmpfile_basedir: System.fetch_env!("TMPDIR")
