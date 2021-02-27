@@ -4,7 +4,7 @@ defmodule Daidoquer2.MixProject do
   def project do
     [
       app: :daidoquer2,
-      version: "0.1.8",
+      version: "0.1.9",
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps()
