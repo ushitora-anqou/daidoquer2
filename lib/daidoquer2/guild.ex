@@ -383,7 +383,7 @@ defmodule Daidoquer2.Guild do
       res = HTTPoison.post!("http://localhost:8399", text)
 
       # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
-      tmpfile_basedir = Application.get_env(:daidoquer2, :tmpfile_basedir)
+      tmpfile_basedir = Application.fetch_env!(:daidoquer2, :tmpfile_basedir)
       {:ok, fd, file_path} = Temp.open(%{prefix: "daidoquer2", basedir: tmpfile_basedir})
       IO.binwrite(fd, res.body)
       File.close(fd)

@@ -9,4 +9,4 @@ config :nostrum,
   youtubedl: "/usr/bin/youtube-dl"
 
 config :daidoquer2,
-  tmpfile_basedir: System.fetch_env!("TMPDIR")
+  tmpfile_basedir: System.get_env("TMPDIR", "/tmp")
