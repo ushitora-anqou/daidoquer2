@@ -261,6 +261,13 @@ defmodule Daidoquer2.Guild do
     end
   end
 
+  defp get_channel(chan_id) do
+    case Nostrum.Cache.ChannelCache.get(chan_id) do
+      {:ok, chan} -> {:ok, chan}
+      {:error, _} -> Nostrum.Api.get_channel(chan_id)
+    end
+  end
+
   defp get_num_of_users_in_my_channel(guild_id) do
     my_channel = get_voice_channel_of(guild_id, Me.get().id)
 
@@ -299,6 +306,17 @@ defmodule Daidoquer2.Guild do
     end)
   end
 
+  defp replace_channel_id_with_channel_name(text) do
+    Regex.replace(~r/<#!?([0-9]+)>/, text, fn whole, chan_id_str ->
+      {chan_id, ""} = chan_id_str |> Integer.parse()
+
+      case get_channel(chan_id) do
+        {:ok, chan} -> chan.name
+        {:error, _} -> whole
+      end
+    end)
+  end
+
   defp ignore_or_start_speaking_or_queue(state, text) do
     cond do
       not Voice.ready?(state.guild_id) ->
@@ -315,6 +333,7 @@ defmodule Daidoquer2.Guild do
         {san_ok, text} =
           text
           |> replace_mention_with_display_name(state.guild_id)
+          |> replace_channel_id_with_channel_name()
           |> Daidoquer2.MessageSanitizer.sanitize()
 
         cond do
