@@ -306,7 +306,7 @@ defmodule Daidoquer2.Guild do
     end)
   end
 
-  defp replace_channel_id_with_channel_name(text) do
+  defp replace_channel_id_with_its_name(text) do
     Regex.replace(~r/<#!?([0-9]+)>/, text, fn whole, chan_id_str ->
       {chan_id, ""} = chan_id_str |> Integer.parse()
 
@@ -333,7 +333,7 @@ defmodule Daidoquer2.Guild do
         {san_ok, text} =
           text
           |> replace_mention_with_display_name(state.guild_id)
-          |> replace_channel_id_with_channel_name()
+          |> replace_channel_id_with_its_name()
           |> Daidoquer2.MessageSanitizer.sanitize()
 
         cond do
