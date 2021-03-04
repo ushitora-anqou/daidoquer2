@@ -311,7 +311,7 @@ defmodule Daidoquer2.Guild do
       {chan_id, ""} = chan_id_str |> Integer.parse()
 
       case get_channel(chan_id) do
-        {:ok, chan} -> chan.name
+        {:ok, chan} -> "#" <> chan.name
         {:error, _} -> whole
       end
     end)
