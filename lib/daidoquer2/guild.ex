@@ -54,7 +54,8 @@ defmodule Daidoquer2.Guild do
      %{
        guild_id: guild_id,
        msg_queue: :queue.new(),
-       tmpfile_path: nil,
+       # state() :: :waiting | :speaking
+       state: :waiting,
        leaving: false,
        voice_states: %{}
      }}
@@ -198,7 +199,7 @@ defmodule Daidoquer2.Guild do
           :ok = Voice.join_channel(state.guild_id, voice_channel_id)
           channel = Api.get_channel!(voice_channel_id)
           Api.create_message(msg.channel_id, "Joined #{channel.name}")
-          {:noreply, %{new_state | tmpfile_path: nil, msg_queue: :queue.new()}}
+          {:noreply, %{new_state | state: :waiting, msg_queue: :queue.new()}}
       end
     end
   end
@@ -214,7 +215,7 @@ defmodule Daidoquer2.Guild do
         {:noreply, state}
 
       true ->
-        if state.tmpfile_path != nil do
+        if state.state == :speaking do
           Voice.stop(state.guild_id)
         end
 
@@ -234,14 +235,10 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast(:speaking_ended, state) do
-    if state.tmpfile_path != nil do
-      File.rm(state.tmpfile_path)
-    end
-
     if state.leaving && :queue.is_empty(state.msg_queue) do
       # Finished speaking farewell. Leave now.
       Voice.leave_channel(state.guild_id)
-      {:noreply, %{state | tmpfile_path: nil, leaving: false}}
+      {:noreply, %{state | state: :waiting, leaving: false}}
     else
       speak_message_in_queue(state)
     end
@@ -345,7 +342,7 @@ defmodule Daidoquer2.Guild do
             # Nothing to speak. Just ignore.
             {:noreply, state}
 
-          Voice.playing?(state.guild_id) or state.tmpfile_path != nil ->
+          Voice.playing?(state.guild_id) or state.state == :speaking ->
             # Currently speaking. Queue the message.
             {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
 
@@ -363,12 +360,12 @@ defmodule Daidoquer2.Guild do
   defp speak_message_in_queue(state) do
     case :queue.out(state.msg_queue) do
       {:empty, _} ->
-        {:noreply, %{state | tmpfile_path: nil}}
+        {:noreply, %{state | state: :waiting}}
 
       {{:value, msg}, msg_queue} ->
         case start_speaking(state.guild_id, msg) do
-          {:ok, tmpfile_path} ->
-            {:noreply, %{state | tmpfile_path: tmpfile_path, msg_queue: msg_queue}}
+          :ok ->
+            {:noreply, %{state | state: :speaking, msg_queue: msg_queue}}
 
           {:error, _} ->
             speak_message_in_queue(%{state | msg_queue: msg_queue})
@@ -382,16 +379,9 @@ defmodule Daidoquer2.Guild do
 
       res = HTTPoison.post!("http://localhost:8399", text)
 
-      # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
-      tmpfile_basedir = Application.fetch_env!(:daidoquer2, :tmpfile_basedir)
-      {:ok, fd, file_path} = Temp.open(%{prefix: "daidoquer2", basedir: tmpfile_basedir})
-      # IO.binwrite(fd, res.body)
-      File.close(fd)
-
       Logger.debug("Speaking (#{guild_id}): #{text}")
-      # :ok = Voice.play(guild_id, file_path, :url, realtime: false)
       :ok = Voice.play(guild_id, res.body, :pipe, realtime: false)
-      {:ok, file_path}
+      :ok
     rescue
       e ->
         Logger.error("Can't speak #{inspect(text)} (#{guild_id}): #{inspect(e)}")

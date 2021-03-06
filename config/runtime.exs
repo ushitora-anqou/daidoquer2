@@ -11,5 +11,4 @@ config :nostrum,
   ffmpeg: System.get_env("FFMPEG_PATH", "/usr/bin/ffmpeg"),
   youtubedl: System.get_env("YOUTUBEDL_PATH", "/usr/bin/youtube-dl")
 
-config :daidoquer2,
-  tmpfile_basedir: System.get_env("TMPDIR", "/tmp")
+# config :daidoquer2
