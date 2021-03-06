@@ -54,8 +54,7 @@ defmodule Daidoquer2.Guild do
      %{
        guild_id: guild_id,
        msg_queue: :queue.new(),
-       # state() :: :waiting | :speaking
-       state: :waiting,
+       speaking: false,
        leaving: false,
        voice_states: %{}
      }}
@@ -199,7 +198,7 @@ defmodule Daidoquer2.Guild do
           :ok = Voice.join_channel(state.guild_id, voice_channel_id)
           channel = Api.get_channel!(voice_channel_id)
           Api.create_message(msg.channel_id, "Joined #{channel.name}")
-          {:noreply, %{new_state | state: :waiting, msg_queue: :queue.new()}}
+          {:noreply, %{new_state | speaking: false, msg_queue: :queue.new()}}
       end
     end
   end
@@ -215,7 +214,7 @@ defmodule Daidoquer2.Guild do
         {:noreply, state}
 
       true ->
-        if state.state == :speaking do
+        if state.speaking do
           Voice.stop(state.guild_id)
         end
 
@@ -238,7 +237,7 @@ defmodule Daidoquer2.Guild do
     if state.leaving && :queue.is_empty(state.msg_queue) do
       # Finished speaking farewell. Leave now.
       Voice.leave_channel(state.guild_id)
-      {:noreply, %{state | state: :waiting, leaving: false}}
+      {:noreply, %{state | speaking: false, leaving: false}}
     else
       speak_message_in_queue(state)
     end
@@ -342,7 +341,7 @@ defmodule Daidoquer2.Guild do
             # Nothing to speak. Just ignore.
             {:noreply, state}
 
-          Voice.playing?(state.guild_id) or state.state == :speaking ->
+          Voice.playing?(state.guild_id) or state.speaking ->
             # Currently speaking. Queue the message.
             {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
 
@@ -360,12 +359,12 @@ defmodule Daidoquer2.Guild do
   defp speak_message_in_queue(state) do
     case :queue.out(state.msg_queue) do
       {:empty, _} ->
-        {:noreply, %{state | state: :waiting}}
+        {:noreply, %{state | speaking: false}}
 
       {{:value, msg}, msg_queue} ->
         case start_speaking(state.guild_id, msg) do
           :ok ->
-            {:noreply, %{state | state: :speaking, msg_queue: msg_queue}}
+            {:noreply, %{state | speaking: true, msg_queue: msg_queue}}
 
           {:error, _} ->
             speak_message_in_queue(%{state | msg_queue: msg_queue})
