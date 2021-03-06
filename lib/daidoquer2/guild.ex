@@ -3,9 +3,7 @@ defmodule Daidoquer2.Guild do
 
   require Logger
 
-  alias Nostrum.Api
-  alias Nostrum.Voice
-  alias Nostrum.Cache.Me
+  alias Daidoquer2.DiscordAPI, as: D
 
   #####
   # External API
@@ -82,8 +80,8 @@ defmodule Daidoquer2.Guild do
     {joining, leaving, my_joining, my_leaving, start_streaming, stop_streaming} =
       with p <- state.voice_states |> Map.get(voice_state.user_id),
            c <- voice_state,
-           my_user_id <- Me.get().id,
-           ch <- get_voice_channel_of(state.guild_id, my_user_id) do
+           my_user_id <- D.me().id,
+           ch <- D.voice_channel_of_user!(state.guild_id, my_user_id) do
         joining =
           if p == nil do
             ch != nil and c.channel_id == ch
@@ -124,7 +122,7 @@ defmodule Daidoquer2.Guild do
 
       joining ->
         # Someone joined the channel
-        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Joined (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが参加しました。")
         Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
@@ -132,11 +130,11 @@ defmodule Daidoquer2.Guild do
 
       leaving ->
         # Someone left the channel
-        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Left (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが離れました。")
 
-        if get_num_of_users_in_my_channel(state.guild_id) == 0 do
+        if D.num_of_users_in_my_channel!(state.guild_id) == 0 do
           Daidoquer2.GuildKiller.set_timer(state.guild_id)
         end
 
@@ -144,14 +142,14 @@ defmodule Daidoquer2.Guild do
 
       start_streaming ->
         # Someone started streaming
-        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Started streaming (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんがライブを始めました。")
         {:noreply, new_state}
 
       stop_streaming ->
         # Someone stoped streaming
-        {:ok, name} = get_display_name(state.guild_id, voice_state.user_id)
+        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Stoped streaming (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんがライブを終了しました。")
         {:noreply, new_state}
@@ -177,13 +175,13 @@ defmodule Daidoquer2.Guild do
       Logger.error("this message is not mine (#{state.guild_id}): #{inspect(msg)}")
       {:stop, {:invalid_message, msg, state}}
     else
-      voice_channel_id = get_voice_channel_of(state.guild_id, msg.author.id)
+      voice_channel_id = D.voice_channel_of_user!(state.guild_id, msg.author.id)
 
       new_state = %{
         state
         | voice_states:
             state.guild_id
-            |> get_guild!
+            |> D.guild!()
             |> Map.get(:voice_states)
             |> Map.new(fn s -> {s.user_id, s} end)
       }
@@ -191,20 +189,20 @@ defmodule Daidoquer2.Guild do
       cond do
         voice_channel_id == nil ->
           # The user doesn't belong to VC
-          Api.create_message(msg.channel_id, "Call from VC")
+          D.text_message(msg.channel_id, "Call from VC")
           {:noreply, new_state}
 
-        voice_channel_id == get_voice_channel_of(state.guild_id, Me.get().id) ->
+        voice_channel_id == D.voice_channel_of_user!(state.guild_id, D.me().id) ->
           # Already joined
-          channel = Api.get_channel!(msg.channel_id)
-          Api.create_message(msg.channel_id, "Already joined #{channel.name}")
+          channel = D.channel!(msg.channel_id)
+          D.text_message(msg.channel_id, "Already joined #{channel.name}")
           {:noreply, new_state}
 
         true ->
           # Really join
-          :ok = Voice.join_channel(state.guild_id, voice_channel_id)
-          channel = Api.get_channel!(voice_channel_id)
-          Api.create_message(msg.channel_id, "Joined #{channel.name}")
+          D.join_voice_channel!(state.guild_id, voice_channel_id)
+          channel = D.channel!(voice_channel_id)
+          D.text_message(msg.channel_id, "Joined #{channel.name}")
           {:noreply, %{new_state | speaking: false, joining: true, msg_queue: :queue.new()}}
       end
     end
@@ -212,7 +210,7 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast(:leave, state) do
     cond do
-      not Voice.ready?(state.guild_id) ->
+      not D.voice_ready?(state.guild_id) ->
         # Not joined. Just ignore.
         {:noreply, state}
 
@@ -222,7 +220,7 @@ defmodule Daidoquer2.Guild do
 
       true ->
         if state.speaking do
-          Voice.stop(state.guild_id)
+          D.voice_stop(state.guild_id)
         end
 
         state = %{state | msg_queue: :queue.new()}
@@ -243,58 +241,10 @@ defmodule Daidoquer2.Guild do
   def handle_cast(:speaking_ended, state) do
     if state.leaving && :queue.is_empty(state.msg_queue) do
       # Finished speaking farewell. Leave now.
-      Voice.leave_channel(state.guild_id)
+      D.leave_voice_channel(state.guild_id)
       {:noreply, %{state | speaking: false, leaving: false}}
     else
       speak_message_in_queue(state)
-    end
-  end
-
-  defp get_user!(user_id) do
-    case Nostrum.Cache.UserCache.get(user_id) do
-      {:ok, user} -> user
-      {:error, _} -> Nostrum.Api.get_user!(user_id)
-    end
-  end
-
-  defp get_guild!(guild_id) do
-    case Nostrum.Cache.GuildCache.get(guild_id) do
-      {:ok, user} -> user
-      {:error, _} -> Nostrum.Api.get_guild!(guild_id)
-    end
-  end
-
-  defp get_channel(chan_id) do
-    case Nostrum.Cache.ChannelCache.get(chan_id) do
-      {:ok, chan} -> {:ok, chan}
-      {:error, _} -> Nostrum.Api.get_channel(chan_id)
-    end
-  end
-
-  defp get_num_of_users_in_my_channel(guild_id) do
-    my_channel = get_voice_channel_of(guild_id, Me.get().id)
-
-    guild_id
-    |> get_guild!
-    |> Map.get(:voice_states)
-    |> Enum.filter(fn v ->
-      v.channel_id == my_channel and get_user!(v.user_id).bot != true
-    end)
-    |> length
-  end
-
-  defp get_voice_channel_of(guild_id, user_id) do
-    guild_id
-    |> get_guild!
-    |> Map.get(:voice_states)
-    |> Enum.find(%{}, fn v -> v.user_id == user_id end)
-    |> Map.get(:channel_id)
-  end
-
-  defp get_display_name(guild_id, user_id) do
-    case Nostrum.Api.get_guild_member(guild_id, user_id) do
-      {:ok, member} -> {:ok, member.nick || member.user.username}
-      error -> error
     end
   end
 
@@ -302,7 +252,7 @@ defmodule Daidoquer2.Guild do
     Regex.replace(~r/<@!?([0-9]+)>/, text, fn whole, user_id_str ->
       {user_id, ""} = user_id_str |> Integer.parse()
 
-      case get_display_name(guild_id, user_id) do
+      case D.display_name_of_user(guild_id, user_id) do
         {:ok, name} -> "@" <> name
         {:error, _} -> whole
       end
@@ -313,7 +263,7 @@ defmodule Daidoquer2.Guild do
     Regex.replace(~r/<#!?([0-9]+)>/, text, fn whole, chan_id_str ->
       {chan_id, ""} = chan_id_str |> Integer.parse()
 
-      case get_channel(chan_id) do
+      case D.channel(chan_id) do
         {:ok, chan} -> "#" <> chan.name
         {:error, _} -> whole
       end
@@ -322,7 +272,7 @@ defmodule Daidoquer2.Guild do
 
   defp ignore_or_start_speaking_or_queue(state, text) do
     cond do
-      not Voice.ready?(state.guild_id) ->
+      not D.voice_ready?(state.guild_id) ->
         # Not joined. Just ignore.
         {:noreply, state}
 
@@ -348,7 +298,7 @@ defmodule Daidoquer2.Guild do
             # Nothing to speak. Just ignore.
             {:noreply, state}
 
-          Voice.playing?(state.guild_id) or state.speaking ->
+          D.voice_playing?(state.guild_id) or state.speaking ->
             # Currently speaking. Queue the message.
             {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
 
@@ -381,12 +331,12 @@ defmodule Daidoquer2.Guild do
 
   defp start_speaking(guild_id, text) do
     try do
-      true = Voice.ready?(guild_id)
+      true = D.voice_ready?(guild_id)
 
       res = HTTPoison.post!("http://localhost:8399", text)
 
       Logger.debug("Speaking (#{guild_id}): #{text}")
-      :ok = Voice.play(guild_id, res.body, :pipe, realtime: false)
+      D.voice_play!(guild_id, res.body, :pipe, realtime: false)
       :ok
     rescue
       e ->
