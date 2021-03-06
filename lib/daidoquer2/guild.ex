@@ -385,11 +385,12 @@ defmodule Daidoquer2.Guild do
       # FIXME: `Voice.play(guild_id, File.read!("hoge.wav"), :pipe)` doesn't work.
       tmpfile_basedir = Application.fetch_env!(:daidoquer2, :tmpfile_basedir)
       {:ok, fd, file_path} = Temp.open(%{prefix: "daidoquer2", basedir: tmpfile_basedir})
-      IO.binwrite(fd, res.body)
+      # IO.binwrite(fd, res.body)
       File.close(fd)
 
       Logger.debug("Speaking (#{guild_id}): #{text}")
-      :ok = Voice.play(guild_id, file_path, :url, realtime: false)
+      # :ok = Voice.play(guild_id, file_path, :url, realtime: false)
+      :ok = Voice.play(guild_id, res.body, :pipe, realtime: false)
       {:ok, file_path}
     rescue
       e ->
