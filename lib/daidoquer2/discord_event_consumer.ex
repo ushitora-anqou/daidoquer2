@@ -7,29 +7,29 @@ defmodule Daidoquer2.DiscordEventConsumer do
     Consumer.start_link(__MODULE__)
   end
 
+  def handle_event({:MESSAGE_CREATE, %{author: %{bot: true}} = _msg, _ws_state}) do
+    # Don't respond to bots
+    :ignore
+  end
+
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
-    if msg.author.bot do
-      # Don't respond to bots
-      :ignore
-    else
-      gid = msg.guild_id
+    gid = msg.guild_id
 
-      case msg.content do
-        "!ddq join" ->
-          Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
+    case Regex.run(~r/^!ddq2?\s+(.+)$/, msg.content) do
+      nil ->
+        Daidoquer2.GuildRegistry.cast_if_exists(gid, :cast_message, [msg])
 
-        "!ddq2 join" ->
-          Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
+      [_, "join"] ->
+        Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
 
-        "!ddq leave" ->
-          Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel)
+      [_, "leave"] ->
+        Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel)
 
-        "!ddq2 leave" ->
-          Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel)
+      # FIXME: We probably need "!ddq help"
 
-        _ ->
-          Daidoquer2.GuildRegistry.cast_if_exists(gid, :cast_message, [msg])
-      end
+      _ ->
+        # Just ignore "!ddq invalid-command"
+        nil
     end
   end
 
