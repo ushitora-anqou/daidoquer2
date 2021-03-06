@@ -55,6 +55,7 @@ defmodule Daidoquer2.Guild do
        guild_id: guild_id,
        msg_queue: :queue.new(),
        speaking: false,
+       joining: false,
        leaving: false,
        voice_states: %{}
      }}
@@ -160,8 +161,14 @@ defmodule Daidoquer2.Guild do
     end
   end
 
-  def handle_cast(:voice_ready, state) do
+  def handle_cast(:voice_ready, %{joining: true} = state) do
     cast_bare_message(self(), "こんにちは、daidoquer2です。やさしくしてね。")
+    {:noreply, %{state | joining: false}}
+  end
+
+  def handle_cast(:voice_ready, state) do
+    # Maybe reconnected. Just ignore.
+    Logger.debug("Ignore VOICE_READY, maybe reconnected?")
     {:noreply, state}
   end
 
@@ -198,7 +205,7 @@ defmodule Daidoquer2.Guild do
           :ok = Voice.join_channel(state.guild_id, voice_channel_id)
           channel = Api.get_channel!(voice_channel_id)
           Api.create_message(msg.channel_id, "Joined #{channel.name}")
-          {:noreply, %{new_state | speaking: false, msg_queue: :queue.new()}}
+          {:noreply, %{new_state | speaking: false, joining: true, msg_queue: :queue.new()}}
       end
     end
   end
