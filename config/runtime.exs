@@ -8,8 +8,8 @@ config :porcelain,
 config :nostrum,
   token: System.fetch_env!("DISCORD_TOKEN"),
   num_shards: :auto,
-  ffmpeg: "/usr/bin/ffmpeg",
-  youtubedl: "/usr/bin/youtube-dl"
+  ffmpeg: System.get_env("FFMPEG_PATH", "/usr/bin/ffmpeg"),
+  youtubedl: System.get_env("YOUTUBEDL_PATH", "/usr/bin/youtube-dl")
 
 config :daidoquer2,
   tmpfile_basedir: System.get_env("TMPDIR", "/tmp")
