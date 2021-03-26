@@ -209,8 +209,10 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast(:leave, state) do
+    voice_ready = try_make_voice_ready(state.guild_id)
+
     cond do
-      not D.voice_ready?(state.guild_id) ->
+      not voice_ready ->
         # Not joined. Just ignore.
         {:noreply, state}
 
@@ -271,8 +273,10 @@ defmodule Daidoquer2.Guild do
   end
 
   defp ignore_or_start_speaking_or_queue(state, text) do
+    voice_ready = try_make_voice_ready(state.guild_id)
+
     cond do
-      not D.voice_ready?(state.guild_id) ->
+      not voice_ready ->
         # Not joined. Just ignore.
         {:noreply, state}
 
@@ -342,6 +346,26 @@ defmodule Daidoquer2.Guild do
       e ->
         Logger.error("Can't speak #{inspect(text)} (#{guild_id}): #{inspect(e)}")
         {:error, e}
+    end
+  end
+
+  defp try_make_voice_ready(guild_id) do
+    if D.voice_ready?(guild_id) do
+      # Already ready. Do nothing.
+      true
+    else
+      voice_channel_id = D.voice_channel_of_user!(guild_id, D.me().id)
+
+      if voice_channel_id == nil do
+        # I don't belong to any voice channel, so can't make voice ready.
+        false
+      else
+        # Not voice ready BUT I belong to a voice channel.
+        # (Maybe due to Discord's connection problem?)
+        # Try to re-join the channel
+        Logger.debug("Try re-joining to voice channel")
+        D.join_voice_channel!(guild_id, voice_channel_id) == :ok
+      end
     end
   end
 end

@@ -79,6 +79,10 @@ defmodule Daidoquer2.DiscordAPI do
     |> length
   end
 
+  def join_voice_channel(guild_id, vchannel_id) do
+    Voice.join_channel(guild_id, vchannel_id)
+  end
+
   def join_voice_channel!(guild_id, vchannel_id) do
     :ok = Voice.join_channel(guild_id, vchannel_id)
   end
