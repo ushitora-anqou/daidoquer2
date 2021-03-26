@@ -20,6 +20,7 @@ defmodule Daidoquer2.GuildRegistry do
   def cast_if_exists(guild_id, funname, args \\ []) do
     case where(guild_id) do
       :undefined ->
+        Logger.debug("Guild #{guild_id} not found")
         {:error, :guild_not_exists}
 
       pid ->
