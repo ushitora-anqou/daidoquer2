@@ -233,6 +233,12 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast({:discord_message, msg}, state) do
     true = msg.guild_id == state.guild_id
+
+    # If msg has any attachments then say dummy
+    if length(msg.attachments) != 0 do
+      ignore_or_start_speaking_or_queue(state, "ちくわ大明神。")
+    end
+
     ignore_or_start_speaking_or_queue(state, msg.content)
   end
 
