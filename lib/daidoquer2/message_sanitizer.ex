@@ -1,6 +1,9 @@
 defmodule Daidoquer2.MessageSanitizer do
-  @dummy "。ちくわ大明神。"
   @message_length_limit 100
+
+  def dummy do
+    Application.get_env(:daidoquer2, :dummy, "ちくわ大明神。")
+  end
 
   def sanitize(text) do
     try do
@@ -32,12 +35,12 @@ defmodule Daidoquer2.MessageSanitizer do
 
   defp replace_url_with_dummy(text) do
     re = ~r/(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:\/?#[\]@!\$%&'\(\)\*\+,;=.]+/u
-    Regex.replace(re, text, @dummy)
+    Regex.replace(re, text, dummy())
   end
 
   defp replace_code_block_with_dummy(text) do
     re = ~r/```.+```/s
-    Regex.replace(re, text, @dummy)
+    Regex.replace(re, text, dummy())
   end
 
   defp replace_custom_emoji_with_name(text) do

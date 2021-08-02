@@ -236,7 +236,7 @@ defmodule Daidoquer2.Guild do
 
     # If msg has any attachments then say dummy
     if length(msg.attachments) != 0 do
-      ignore_or_start_speaking_or_queue(state, "ちくわ大明神。")
+      ignore_or_start_speaking_or_queue(state, Daidoquer2.MessageSanitizer.dummy())
     end
 
     ignore_or_start_speaking_or_queue(state, msg.content)
