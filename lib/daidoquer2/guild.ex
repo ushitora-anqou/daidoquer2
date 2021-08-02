@@ -232,6 +232,8 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast({:discord_message, msg}, state) do
+    Logger.debug(inspect(msg))
+
     true = msg.guild_id == state.guild_id
 
     # If msg has any attachments then say dummy
