@@ -235,13 +235,14 @@ defmodule Daidoquer2.Guild do
     Logger.debug(inspect(msg))
 
     true = msg.guild_id == state.guild_id
+    uid = msg.author.id
 
     # If msg has any attachments then say dummy
     if length(msg.attachments) != 0 do
-      ignore_or_start_speaking_or_queue(state, Daidoquer2.MessageSanitizer.dummy())
+      ignore_or_start_speaking_or_queue(state, Daidoquer2.MessageSanitizer.dummy(), uid)
     end
 
-    ignore_or_start_speaking_or_queue(state, msg.content)
+    ignore_or_start_speaking_or_queue(state, msg.content, uid)
   end
 
   def handle_cast({:bare_message, text}, state) do
@@ -280,7 +281,7 @@ defmodule Daidoquer2.Guild do
     end)
   end
 
-  defp ignore_or_start_speaking_or_queue(state, text) do
+  defp ignore_or_start_speaking_or_queue(state, text, uid \\ nil) do
     voice_ready = try_make_voice_ready(state.guild_id)
 
     cond do
@@ -301,6 +302,11 @@ defmodule Daidoquer2.Guild do
           |> replace_channel_id_with_its_name()
           |> Daidoquer2.MessageSanitizer.sanitize()
 
+        que_elm = %{
+          text: text,
+          uid: uid
+        }
+
         cond do
           san_ok != :ok ->
             # Failed to sanitize the message. Just ignore.
@@ -312,11 +318,11 @@ defmodule Daidoquer2.Guild do
 
           D.voice_playing?(state.guild_id) or state.speaking ->
             # Currently speaking. Queue the message.
-            {:noreply, %{state | msg_queue: :queue.in(text, state.msg_queue)}}
+            {:noreply, %{state | msg_queue: :queue.in(que_elm, state.msg_queue)}}
 
           :queue.is_empty(state.msg_queue) ->
             # Currently not speaking and the queue is empty. Speak the message.
-            speak_message_in_queue(%{state | msg_queue: :queue.in(text, state.msg_queue)})
+            speak_message_in_queue(%{state | msg_queue: :queue.in(que_elm, state.msg_queue)})
 
           true ->
             Logger.error("Invalid state; not currently speaking, but queue is not empty.")
@@ -330,8 +336,10 @@ defmodule Daidoquer2.Guild do
       {:empty, _} ->
         {:noreply, %{state | speaking: false}}
 
-      {{:value, msg}, msg_queue} ->
-        case start_speaking(state.guild_id, msg) do
+      {{:value, %{text: text, uid: uid}}, msg_queue} ->
+        chara = select_chara_from_uid(uid)
+
+        case start_speaking(state.guild_id, text, chara) do
           :ok ->
             {:noreply, %{state | speaking: true, msg_queue: msg_queue}}
 
@@ -341,18 +349,71 @@ defmodule Daidoquer2.Guild do
     end
   end
 
-  defp start_speaking(guild_id, text) do
+  defp select_chara_from_uid(uid) do
+    if uid == nil do
+      :post
+    else
+      Application.get_env(:daidoquer2, :uid2chara, %{})
+      |> Map.get(uid, {:google, rem(uid, 4)})
+    end
+  end
+
+  defp tts_via_google(text, chara) do
+    {:ok, token} = Goth.Token.for_scope("https://www.googleapis.com/auth/cloud-platform")
+    client = GoogleApi.TextToSpeech.V1.Connection.new(token.token)
+
+    request = %GoogleApi.TextToSpeech.V1.Model.SynthesizeSpeechRequest{
+      input: %GoogleApi.TextToSpeech.V1.Model.SynthesisInput{
+        text: text
+      },
+      voice: %GoogleApi.TextToSpeech.V1.Model.VoiceSelectionParams{
+        languageCode: "ja-JP",
+        name:
+          case chara do
+            0 -> "ja-JP-Wavenet-A"
+            1 -> "ja-JP-Wavenet-B"
+            2 -> "ja-JP-Wavenet-C"
+            _ -> "ja-JP-Wavenet-D"
+          end
+      },
+      audioConfig: %GoogleApi.TextToSpeech.V1.Model.AudioConfig{
+        audioEncoding: "MP3"
+      }
+    }
+
+    {:ok, response} =
+      GoogleApi.TextToSpeech.V1.Api.Text.texttospeech_text_synthesize(client, body: request)
+
+    Base.decode64!(response.audioContent)
+  end
+
+  defp tts_via_post(text) do
+    res = HTTPoison.post!("http://localhost:8399", text)
+    res.body
+  end
+
+  defp start_speaking(guild_id, text, chara) do
     try do
       true = D.voice_ready?(guild_id)
 
-      res = HTTPoison.post!("http://localhost:8399", text)
+      speech =
+        case chara do
+          :post ->
+            tts_via_post(text)
 
-      Logger.debug("Speaking (#{guild_id}): #{text}")
-      D.voice_play!(guild_id, res.body, :pipe, realtime: false)
+          {:google, chara} ->
+            tts_via_google(text, chara)
+        end
+
+      Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
+      D.voice_play!(guild_id, speech, :pipe, realtime: false)
       :ok
     rescue
       e ->
-        Logger.error("Can't speak #{inspect(text)} (#{guild_id}): #{inspect(e)}")
+        Logger.error(
+          "Can't speak #{inspect(text)} (#{guild_id},#{inspect(chara)}): #{inspect(e)}"
+        )
+
         {:error, e}
     end
   end

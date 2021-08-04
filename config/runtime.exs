@@ -11,4 +11,9 @@ config :nostrum,
   ffmpeg: System.get_env("FFMPEG_PATH", "/usr/bin/ffmpeg"),
   youtubedl: System.get_env("YOUTUBEDL_PATH", "/usr/bin/youtube-dl")
 
-# config :daidoquer2
+config :daidoquer2,
+  uid2chara:
+    %{
+      # uid1 => :post,
+      # uid2 => {:google, 0}
+    }
