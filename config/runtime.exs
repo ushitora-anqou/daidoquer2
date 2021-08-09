@@ -14,8 +14,9 @@ config :nostrum,
 # config :goth, disabled: true
 
 config :daidoquer2,
+  default_post_url: "http://localhost:8399",
   uid2chara:
     %{
-      # uid1 => :post,
+      # uid1 => {:post, "http://localhost:8399"},
       # uid2 => {:google, 0}
     }

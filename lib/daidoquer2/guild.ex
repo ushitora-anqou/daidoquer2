@@ -351,7 +351,7 @@ defmodule Daidoquer2.Guild do
 
   defp select_chara_from_uid(uid) do
     if uid == nil do
-      :post
+      {:post, Application.get_env(:daidoquer2, :default_post_url, "http://localhost:8399")}
     else
       Application.get_env(:daidoquer2, :uid2chara, %{})
       |> Map.get(uid, {:google, rem(uid, 4)})
@@ -387,8 +387,8 @@ defmodule Daidoquer2.Guild do
     Base.decode64!(response.audioContent)
   end
 
-  defp tts_via_post(text) do
-    res = HTTPoison.post!("http://localhost:8399", text)
+  defp tts_via_post(text, url) do
+    res = HTTPoison.post!(url, text)
     res.body
   end
 
@@ -398,8 +398,8 @@ defmodule Daidoquer2.Guild do
 
       speech =
         case chara do
-          :post ->
-            tts_via_post(text)
+          {:post, url} ->
+            tts_via_post(text, url)
 
           {:google, chara} ->
             tts_via_google(text, chara)
