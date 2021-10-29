@@ -1,3 +1,29 @@
+###
+# A --> B === A calls B
+#
+#  ignore_or_start_speaking_or_queue/3
+#    : -> {:noreply, state}
+#   |
+#   |        handle_cast(:leave, state)
+#   |         |
+#   v         v
+#  start_speaking_or_queue/3
+#    : -> {:error, :voice_not_ready | :state_leaving | :sanitize_failed |
+#                  :empty_msg | :invalid_state} |
+#         {:error, :cant_speak, state}
+#         {:ok, state}
+#   |
+#   |                      handle_cast(:speaking_ended, _state)
+#   |                       |
+#   v                       v
+#  speak_first_message_in_queue/1
+#    : -> {:ok, state} | {:error, :cant_speak, state}
+#   |
+#   v
+#  start_speaking/3
+#    : -> :ok | {:error, :cant_speak}
+#
+###
 defmodule Daidoquer2.Guild do
   use GenServer, restart: :transient
 
@@ -226,8 +252,17 @@ defmodule Daidoquer2.Guild do
         end
 
         state = %{state | msg_queue: :queue.new()}
-        {:noreply, state} = ignore_or_start_speaking_or_queue(state, "。お相手はdaidoquer2でした。またね。")
-        {:noreply, %{state | leaving: true}}
+
+        case start_speaking_or_queue(state, "。お相手はdaidoquer2でした。またね。", nil) do
+          {:ok, state} ->
+            {:noreply, %{state | leaving: true}}
+
+          {:error, _} ->
+            # Failed to speak the announcement for some reason, so
+            # leave the channel now.
+            D.leave_voice_channel(state.guild_id)
+            {:noreply, %{state | speaking: false, leaving: false}}
+        end
     end
   end
 
@@ -255,7 +290,15 @@ defmodule Daidoquer2.Guild do
       D.leave_voice_channel(state.guild_id)
       {:noreply, %{state | speaking: false, leaving: false}}
     else
-      speak_message_in_queue(state)
+      case speak_first_message_in_queue(state) do
+        {:ok, state} ->
+          {:noreply, state}
+
+        {:error, _e, state} ->
+          # Failed to speak the first message in the queue,
+          # so try the next one
+          handle_cast(:speaking_ended, state)
+      end
     end
   end
 
@@ -282,16 +325,45 @@ defmodule Daidoquer2.Guild do
   end
 
   defp ignore_or_start_speaking_or_queue(state, text, uid \\ nil) do
+    case start_speaking_or_queue(state, text, uid) do
+      {:ok, state} ->
+        {:noreply, state}
+
+      {:error, :voice_not_ready} ->
+        Logger.debug("Ignore message because voice is not ready")
+        {:noreply, state}
+
+      {:error, :state_leaving} ->
+        Logger.debug("Ignore message because state is leaving")
+        {:noreply, state}
+
+      {:error, :sanitize_failed} ->
+        Logger.debug("Ignore message because sanitization failed")
+        {:noreply, state}
+
+      {:error, :empty_msg} ->
+        Logger.debug("Ignore message because it was empty")
+        {:noreply, state}
+
+      {:error, :invalid_state} ->
+        {:noreply, state}
+
+      {:error, :cant_speak, state} ->
+        {:noreply, state}
+    end
+  end
+
+  defp start_speaking_or_queue(state, text, uid) do
     voice_ready = try_make_voice_ready(state.guild_id)
 
     cond do
       not voice_ready ->
         # Not joined. Just ignore.
-        {:noreply, state}
+        {:error, :voice_not_ready}
 
       state.leaving ->
         # Leaving now, so don't accept new messages.
-        {:noreply, state}
+        {:error, :state_leaving}
 
       true ->
         Logger.debug("Incoming (#{state.guild_id}): #{text}")
@@ -309,42 +381,42 @@ defmodule Daidoquer2.Guild do
 
         cond do
           san_ok != :ok ->
-            # Failed to sanitize the message. Just ignore.
-            {:noreply, state}
+            # Failed to sanitize the message
+            {:error, :sanitize_failed}
 
           String.length(text) == 0 ->
-            # Nothing to speak. Just ignore.
-            {:noreply, state}
+            # Nothing to speak
+            {:error, :empty_msg}
 
           D.voice_playing?(state.guild_id) or state.speaking ->
             # Currently speaking. Queue the message.
-            {:noreply, %{state | msg_queue: :queue.in(que_elm, state.msg_queue)}}
+            {:ok, %{state | msg_queue: :queue.in(que_elm, state.msg_queue)}}
 
           :queue.is_empty(state.msg_queue) ->
             # Currently not speaking and the queue is empty. Speak the message.
-            speak_message_in_queue(%{state | msg_queue: :queue.in(que_elm, state.msg_queue)})
+            speak_first_message_in_queue(%{state | msg_queue: :queue.in(que_elm, state.msg_queue)})
 
           true ->
             Logger.error("Invalid state; not currently speaking, but queue is not empty.")
-            {:noreply, state}
+            {:error, :invalid_state}
         end
     end
   end
 
-  defp speak_message_in_queue(state) do
+  defp speak_first_message_in_queue(state) do
     case :queue.out(state.msg_queue) do
       {:empty, _} ->
-        {:noreply, %{state | speaking: false}}
+        {:ok, %{state | speaking: false}}
 
       {{:value, %{text: text, uid: uid}}, msg_queue} ->
         chara = select_chara_from_uid(uid)
 
         case start_speaking(state.guild_id, text, chara) do
           :ok ->
-            {:noreply, %{state | speaking: true, msg_queue: msg_queue}}
+            {:ok, %{state | speaking: true, msg_queue: msg_queue}}
 
-          {:error, _} ->
-            speak_message_in_queue(%{state | msg_queue: msg_queue})
+          {:error, e} ->
+            {:error, e, %{state | msg_queue: msg_queue}}
         end
     end
   end
@@ -414,7 +486,7 @@ defmodule Daidoquer2.Guild do
           "Can't speak #{inspect(text)} (#{guild_id},#{inspect(chara)}): #{inspect(e)}"
         )
 
-        {:error, e}
+        {:error, :cant_speak}
     end
   end
 
