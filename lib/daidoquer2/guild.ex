@@ -10,14 +10,14 @@
 #  start_speaking_or_queue/3
 #    : -> {:error, :voice_not_ready | :state_leaving | :sanitize_failed |
 #                  :empty_msg | :invalid_state} |
-#         {:error, :cant_speak, state}
+#         {:error, {:cant_speak | :no_one_is_in, state}}
 #         {:ok, state}
 #   |
 #   |                      handle_cast(:speaking_ended, _state)
 #   |                       |
 #   v                       v
 #  speak_first_message_in_queue/1
-#    : -> {:ok, state} | {:error, :cant_speak, state}
+#    : -> {:ok, state} | {:error, {:cant_speak | :no_one_is_in, state}}
 #   |
 #   v
 #  start_speaking/3
@@ -294,8 +294,8 @@ defmodule Daidoquer2.Guild do
         {:ok, state} ->
           {:noreply, state}
 
-        {:error, _e, state} ->
-          # Failed to speak the first message in the queue,
+        {:error, {_e, state}} ->
+          # Failed to speak the first message in the queue (for some reason),
           # so try the next one
           handle_cast(:speaking_ended, state)
       end
@@ -348,7 +348,10 @@ defmodule Daidoquer2.Guild do
       {:error, :invalid_state} ->
         {:noreply, state}
 
-      {:error, :cant_speak, state} ->
+      {:error, {:cant_speak, state}} ->
+        {:noreply, state}
+
+      {:error, {:no_one_is_in, state}} ->
         {:noreply, state}
     end
   end
@@ -409,14 +412,21 @@ defmodule Daidoquer2.Guild do
         {:ok, %{state | speaking: false}}
 
       {{:value, %{text: text, uid: uid}}, msg_queue} ->
-        chara = select_chara_from_uid(uid)
+        if D.num_of_users_in_my_channel!(state.guild_id) == 0 do
+          # No one is in my channel, so don't speak the message.
+          # Just throw it away.
+          Logger.debug("No one is in the channel. Don't speak.")
+          {:error, {:no_one_is_in, %{state | msg_queue: msg_queue}}}
+        else
+          chara = select_chara_from_uid(uid)
 
-        case start_speaking(state.guild_id, text, chara) do
-          :ok ->
-            {:ok, %{state | speaking: true, msg_queue: msg_queue}}
+          case start_speaking(state.guild_id, text, chara) do
+            :ok ->
+              {:ok, %{state | speaking: true, msg_queue: msg_queue}}
 
-          {:error, e} ->
-            {:error, e, %{state | msg_queue: msg_queue}}
+            {:error, e} ->
+              {:error, {e, %{state | msg_queue: msg_queue}}}
+          end
         end
     end
   end
