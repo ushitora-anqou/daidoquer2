@@ -515,7 +515,9 @@ defmodule Daidoquer2.Guild do
         # (Maybe due to Discord's connection problem?)
         # Try to re-join the channel
         Logger.debug("Try re-joining to voice channel")
-        D.join_voice_channel!(guild_id, voice_channel_id) == :ok
+        D.join_voice_channel!(guild_id, voice_channel_id)
+        # FIXME wait until voice becomes ready
+        D.voice_ready?(guild_id)
       end
     end
   end
