@@ -42,8 +42,8 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:join, msg})
   end
 
-  def leave_channel(pid) do
-    GenServer.cast(pid, :leave)
+  def leave_channel(pid, msg) do
+    GenServer.cast(pid, {:leave, msg})
   end
 
   def cast_message(pid, msg) do
@@ -234,8 +234,10 @@ defmodule Daidoquer2.Guild do
     end
   end
 
-  def handle_cast(:leave, state) do
+  def handle_cast({:leave, msg}, state) do
     voice_ready = try_make_voice_ready(state.guild_id)
+    user_vc_id = D.voice_channel_of_user!(state.guild_id, msg.author.id)
+    my_vc_id = D.voice_channel_of_user!(state.guild_id, D.me().id)
 
     cond do
       not voice_ready ->
@@ -244,6 +246,12 @@ defmodule Daidoquer2.Guild do
 
       state.leaving ->
         # Already started to leave. Just ignore.
+        {:noreply, state}
+
+      user_vc_id != my_vc_id ->
+        # User does not join the channel. Just ignore.
+        Logger.debug("'!ddq leave' from another channel")
+        D.text_message(msg.channel_id, "Call from the same VC channel")
         {:noreply, state}
 
       true ->

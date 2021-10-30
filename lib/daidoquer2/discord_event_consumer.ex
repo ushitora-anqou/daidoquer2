@@ -23,7 +23,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
         Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
 
       [_, "leave"] ->
-        Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel)
+        Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel, [msg])
 
       # FIXME: We probably need "!ddq help"
 
