@@ -42,6 +42,10 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:join, msg})
   end
 
+  def kick_from_channel(pid) do
+    GenServer.cast(pid, :kick)
+  end
+
   def leave_channel(pid, msg) do
     GenServer.cast(pid, {:leave, msg})
   end
@@ -232,6 +236,12 @@ defmodule Daidoquer2.Guild do
           {:noreply, %{new_state | speaking: false, joining: true, msg_queue: :queue.new()}}
       end
     end
+  end
+
+  def handle_cast(:kick, state) do
+    # Leave the channel now
+    D.leave_voice_channel(state.guild_id)
+    {:noreply, %{state | msg_queue: :queue.new(), speaking: false, leaving: false}}
   end
 
   def handle_cast({:leave, msg}, state) do
