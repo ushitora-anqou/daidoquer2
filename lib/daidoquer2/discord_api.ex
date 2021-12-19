@@ -10,6 +10,10 @@ defmodule Daidoquer2.DiscordAPI do
     Me.get()
   end
 
+  def voice(guild_id) do
+    Voice.get_voice(guild_id)
+  end
+
   def text_message(channel_id, message) do
     Api.create_message(channel_id, message)
   end

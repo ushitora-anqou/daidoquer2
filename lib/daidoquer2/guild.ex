@@ -78,6 +78,17 @@ defmodule Daidoquer2.Guild do
   def init(guild_id) do
     GenServer.cast(self(), :set_pid)
 
+    try do
+      if D.voice(guild_id) != nil do
+        # Already connected to voice. Maybe previous process was killed by exception.
+        # Set GuildKiller.
+        Logger.debug("INIT: Already connected to voice (#{guild_id})")
+        Daidoquer2.GuildKiller.set_timer(guild_id)
+      end
+    rescue
+      e -> Logger.error("INIT: Failed to get voice status (#{guild_id}): #{inspect(e)}")
+    end
+
     {:ok,
      %{
        guild_id: guild_id,
