@@ -31,7 +31,6 @@ defmodule Daidoquer2.MixProject do
       {:gproc, "~> 0.8.0"},
       {:mbcs_rs, "~> 0.1"},
       {:emojix, "~> 0.3"},
-      {:distillery, "~> 2.0"},
       {:google_api_text_to_speech, "~> 0.12.1"},
       {:goth, "~> 1.2.0"}
     ]
