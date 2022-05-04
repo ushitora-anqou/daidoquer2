@@ -48,6 +48,10 @@ defmodule Daidoquer2.DiscordEventConsumer do
     Daidoquer2.GuildRegistry.cast_if_exists(state.guild_id, :notify_voice_ready, [state])
   end
 
+  def handle_event({:THREAD_CREATE, channel, _}) do
+    Daidoquer2.GuildRegistry.cast_if_exists(channel.guild_id, :thread_create, [channel])
+  end
+
   def handle_event(_event) do
     # Logger.debug("DISCORD EVENT: #{inspect(event)}")
     :noop

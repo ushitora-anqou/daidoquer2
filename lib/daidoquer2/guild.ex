@@ -72,6 +72,11 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, :voice_ready)
   end
 
+  def thread_create(pid, channel) do
+    Logger.debug("THREAD_CREATE: #{inspect(channel)}")
+    GenServer.cast(pid, {:thread_create, channel})
+  end
+
   #####
   # GenServer callbacks
 
@@ -113,6 +118,15 @@ defmodule Daidoquer2.Guild do
         Logger.error("Unreachable: Guild duplicated; some messages may be lost")
         {:stop, :normal, state}
     end
+  end
+
+  def handle_cast({:thread_create, channel}, state) do
+    thread_name = channel.name
+    user_name = D.display_name_of_user!(state.guild_id, channel.owner_id)
+
+    Logger.debug("Thread created (#{state.guild_id}) #{thread_name} by #{user_name}")
+    cast_bare_message(self(), "#{user_name}さんがスレッド「#{thread_name}」を作りました。")
+    {:noreply, state}
   end
 
   def handle_cast({:voice_state_updated, voice_state}, state) do
