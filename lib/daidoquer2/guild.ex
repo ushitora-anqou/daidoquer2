@@ -320,7 +320,14 @@ defmodule Daidoquer2.Guild do
       ignore_or_start_speaking_or_queue(state, Daidoquer2.MessageSanitizer.dummy(), uid)
     end
 
-    ignore_or_start_speaking_or_queue(state, msg.content, uid)
+    content = msg.content
+
+    # If msg has stickers, add them to the content.
+    content =
+      (msg.sticker_items || [])
+      |> List.foldl(content, fn sticker, content -> "#{content} #{sticker.name}" end)
+
+    ignore_or_start_speaking_or_queue(state, content, uid)
   end
 
   def handle_cast({:bare_message, text}, state) do
