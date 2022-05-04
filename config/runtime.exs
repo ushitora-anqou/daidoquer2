@@ -16,4 +16,5 @@ config :daidoquer2,
     %{
       # uid1 => {:post, "http://localhost:8399"},
       # uid2 => {:google, 0}
-    }
+    },
+  tmpfile_path: "/tmp/daidoquer2.tmpfile"

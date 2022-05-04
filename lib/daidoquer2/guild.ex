@@ -516,8 +516,20 @@ defmodule Daidoquer2.Guild do
             tts_via_google(text, chara)
         end
 
+      # Here, we intentionally do not use the option :pipe for D.voice_play!,
+      # because it does not work properly when audio data is short (about <2 seconds).
+      # I belive that this is NOT a problem of :audio_frames_per_burst, which is
+      # explicitly stated in the Nostrum document, but a problem of Port of Elixir.
+      # When the audio data is short, FFmpeg's output finishes before the buffer of Port
+      # becomes full. However, FFmpeg cannot exit (i.e., Port cannot know when FFmpeg
+      # finishes its output) when we use :pipe, so it causes timeout of
+      # Nostrum.Voice.Audio.try_send_data/3.
+      # To avoid this situation, I use :url here, because FFmpeg can exit by doing so.
       Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
-      D.voice_play!(guild_id, speech, :pipe, realtime: false)
+      tmpfile_path = Application.fetch_env!(:daidoquer2, :tmpfile_path)
+      File.write(tmpfile_path, speech, [:binary])
+      D.voice_play!(guild_id, tmpfile_path, :url, realtime: false)
+
       :ok
     rescue
       e ->
