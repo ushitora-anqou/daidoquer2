@@ -88,7 +88,10 @@ defmodule Daidoquer2.Guild do
         # Already connected to voice. Maybe previous process was killed by exception.
         # Set GuildKiller.
         Logger.debug("INIT: Already connected to voice (#{guild_id})")
-        Daidoquer2.GuildKiller.set_timer(guild_id)
+
+        if D.num_of_users_in_my_channel!(guild_id) == 0 do
+          Daidoquer2.GuildKiller.set_timer(guild_id)
+        end
       end
     rescue
       e -> Logger.error("INIT: Failed to get voice status (#{guild_id}): #{inspect(e)}")
