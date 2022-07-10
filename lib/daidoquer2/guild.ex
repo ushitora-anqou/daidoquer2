@@ -83,18 +83,26 @@ defmodule Daidoquer2.Guild do
   def init(guild_id) do
     GenServer.cast(self(), :set_pid)
 
-    try do
-      if D.voice(guild_id) != nil do
-        # Already connected to voice. Maybe previous process was killed by exception.
-        # Set GuildKiller.
-        Logger.debug("INIT: Already connected to voice (#{guild_id})")
-
-        if D.num_of_users_in_my_channel!(guild_id) == 0 do
-          Daidoquer2.GuildKiller.set_timer(guild_id)
-        end
+    voice_connected =
+      try do
+        D.voice(guild_id) != nil
+      rescue
+        e ->
+          Logger.error("INIT: Failed to get voice status (#{guild_id}): #{inspect(e)}")
+          false
       end
-    rescue
-      e -> Logger.error("INIT: Failed to get voice status (#{guild_id}): #{inspect(e)}")
+
+    Logger.debug("INIT: Voice status (#{guild_id}): #{voice_connected}")
+
+    num_users_in_channel =
+      if voice_connected do
+        D.num_of_users_in_my_channel!(guild_id)
+      else
+        0
+      end
+
+    if voice_connected && num_users_in_channel == 0 do
+      Daidoquer2.GuildKiller.set_timer(guild_id)
     end
 
     {:ok,
@@ -104,7 +112,8 @@ defmodule Daidoquer2.Guild do
        speaking: false,
        joining: false,
        leaving: false,
-       voice_states: %{}
+       voice_states: %{},
+       num_users_in_channel: num_users_in_channel
      }}
   end
 
@@ -170,7 +179,12 @@ defmodule Daidoquer2.Guild do
 
     cond do
       my_joining ->
-        # If _I_ am joining, then ignore.
+        # If _I_ am joining
+        new_state = %{
+          new_state
+          | num_users_in_channel: D.num_of_users_in_my_channel!(state.guild_id)
+        }
+
         {:noreply, new_state}
 
       my_leaving ->
@@ -183,7 +197,12 @@ defmodule Daidoquer2.Guild do
         name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Joined (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが参加しました。")
+
+        num_users_in_channel = state.num_users_in_channel + 1
+        new_state = %{new_state | num_users_in_channel: num_users_in_channel}
+
         Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
+
         {:noreply, new_state}
 
       leaving ->
@@ -192,7 +211,10 @@ defmodule Daidoquer2.Guild do
         Logger.debug("Left (#{state.guild_id}) #{name}")
         cast_bare_message(self(), "#{name}さんが離れました。")
 
-        if D.num_of_users_in_my_channel!(state.guild_id) == 0 do
+        num_users_in_channel = state.num_users_in_channel - 1
+        new_state = %{new_state | num_users_in_channel: num_users_in_channel}
+
+        if num_users_in_channel == 0 do
           Daidoquer2.GuildKiller.set_timer(state.guild_id)
         end
 
@@ -465,7 +487,7 @@ defmodule Daidoquer2.Guild do
         {:ok, %{state | speaking: false}}
 
       {{:value, %{text: text, uid: uid}}, msg_queue} ->
-        if D.num_of_users_in_my_channel!(state.guild_id) == 0 do
+        if state.num_users_in_channel == 0 do
           # No one is in my channel, so don't speak the message.
           # Just throw it away.
           Logger.debug("No one is in the channel. Don't speak.")
