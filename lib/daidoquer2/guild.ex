@@ -549,6 +549,18 @@ defmodule Daidoquer2.Guild do
     res.body
   end
 
+  defp tts_via_sushikicom(text, param) do
+    key = System.fetch_env!("SUSHIKICOM_API_TOKEN")
+
+    res =
+      HTTPoison.post!(
+        "https://api.su-shiki.com/v2/voicevox/audio/" <> param,
+        {:form, [{"text", text}, {"key", key}]}
+      )
+
+    res.body
+  end
+
   defp start_speaking(guild_id, text, chara) do
     try do
       true = D.voice_ready?(guild_id)
@@ -560,6 +572,9 @@ defmodule Daidoquer2.Guild do
 
           {:google, chara} ->
             tts_via_google(text, chara)
+
+          {:sushikicom, param} ->
+            tts_via_sushikicom(text, param)
         end
 
       # Here, we intentionally do not use the option :pipe for D.voice_play!,

@@ -32,6 +32,7 @@ config :daidoquer2,
   uid2chara:
     %{
       # uid1 => {:post, "http://localhost:8399"},
-      # uid2 => {:google, 0}
+      # uid2 => {:google, 0},
+      # uid3 => {:sushikicom, "?speaker=12"}
     },
   tmpfile_path: "/tmp/daidoquer2.tmpfile"
