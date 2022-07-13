@@ -35,4 +35,21 @@ config :daidoquer2,
       # uid2 => {:google, 0},
       # uid3 => {:sushikicom, "?speaker=12"}
     },
-  tmpfile_path: "/tmp/daidoquer2.tmpfile"
+  tmpfile_path: "/tmp/daidoquer2.tmpfile",
+  preset_chara: [
+    # {:google, 0},
+    # {:google, 1},
+    # {:google, 2},
+    # {:google, 3},
+    {:sushikicom, "?speaker=2"},
+    {:sushikicom, "?speaker=3"},
+    {:sushikicom, "?speaker=8"},
+    {:sushikicom, "?speaker=9"},
+    {:sushikicom, "?speaker=10"},
+    {:sushikicom, "?speaker=11"},
+    {:sushikicom, "?speaker=12"},
+    {:sushikicom, "?speaker=13"},
+    {:sushikicom, "?speaker=14"},
+    {:sushikicom, "?speaker=16"},
+    {:sushikicom, "?speaker=20"}
+  ]

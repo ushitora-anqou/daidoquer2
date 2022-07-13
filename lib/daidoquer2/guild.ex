@@ -510,8 +510,13 @@ defmodule Daidoquer2.Guild do
     if uid == nil do
       {:post, Application.get_env(:daidoquer2, :default_post_url, "http://localhost:8399")}
     else
-      Application.get_env(:daidoquer2, :uid2chara, %{})
-      |> Map.get(uid, {:google, rem(uid, 4)})
+      uid2chara = Application.get_env(:daidoquer2, :uid2chara, %{})
+      preset_chara = Application.get_env(:daidoquer2, :preset_chara, %{})
+
+      case uid2chara |> Map.fetch(uid) do
+        {:ok, chara} -> chara
+        :error -> preset_chara |> Enum.fetch!(rem(uid, length(preset_chara)))
+      end
     end
   end
 
