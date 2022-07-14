@@ -33,7 +33,8 @@ config :daidoquer2,
     %{
       # uid1 => {:post, "http://localhost:8399"},
       # uid2 => {:google, 0},
-      # uid3 => {:sushikicom, "?speaker=12"}
+      # uid3 => {:sushikicom, "?speaker=12"},
+      # uid4 => {:voicevox_engine, "http://localhost:50021", 0}
     },
   tmpfile_path: "/tmp/daidoquer2.tmpfile",
   preset_chara: [

@@ -566,6 +566,18 @@ defmodule Daidoquer2.Guild do
     res.body
   end
 
+  defp tts_via_voicevox_engine(text, url, speaker) do
+    url1 = construct_url(url, "/audio_query", [{"text", text}, {"speaker", speaker}])
+    url2 = construct_url(url, "/synthesis", [{"speaker", speaker}])
+
+    with {:ok, res1} <- post(url1, ""),
+         {:ok, res2} <- post(url2, res1.body, [{"Content-Type", "application/json"}]) do
+      res2.body
+    else
+      {:error, res} -> raise inspect(res)
+    end
+  end
+
   defp start_speaking(guild_id, text, chara) do
     try do
       true = D.voice_ready?(guild_id)
@@ -580,6 +592,9 @@ defmodule Daidoquer2.Guild do
 
           {:sushikicom, param} ->
             tts_via_sushikicom(text, param)
+
+          {:voicevox_engine, url, speaker} ->
+            tts_via_voicevox_engine(text, url, speaker)
         end
 
       # Here, we intentionally do not use the option :pipe for D.voice_play!,
@@ -626,6 +641,27 @@ defmodule Daidoquer2.Guild do
         # FIXME wait until voice becomes ready
         D.voice_ready?(guild_id)
       end
+    end
+  end
+
+  defp construct_url(baseurl, endpoint, query) do
+    url = URI.parse(baseurl)
+    url = URI.merge(url, endpoint) |> to_string
+    param = URI.encode_query(query)
+    url <> "?" <> param
+  end
+
+  defp post(url, body, headers \\ []) do
+    case HTTPoison.post(url, body, headers) do
+      {:ok, res} ->
+        if res.status_code == 200 do
+          {:ok, res}
+        else
+          {:error, {:status, res}}
+        end
+
+      {:error, res} ->
+        {:error, {:post, res}}
     end
   end
 end
