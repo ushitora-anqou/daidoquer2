@@ -10,7 +10,6 @@ defmodule Daidoquer2.Application do
       # Starts a worker by calling: Daidoquer2.Worker.start_link(arg)
       # {Daidoquer2.Worker, arg}
       Daidoquer2.DiscordEventConsumer,
-      Daidoquer2.GuildRegistry,
       Daidoquer2.GuildSupervisor,
       Daidoquer2.GuildKiller
     ]

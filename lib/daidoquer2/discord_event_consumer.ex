@@ -17,13 +17,13 @@ defmodule Daidoquer2.DiscordEventConsumer do
 
     case Regex.run(~r/^!ddq2?\s+(.+)$/, msg.content) do
       nil ->
-        Daidoquer2.GuildRegistry.cast_if_exists(gid, :cast_message, [msg])
+        cast_if_exists(gid, :cast_message, [msg])
 
       [_, "join"] ->
-        Daidoquer2.GuildRegistry.cast(gid, :join_channel, [msg])
+        cast(gid, :join_channel, [msg])
 
       [_, "leave"] ->
-        Daidoquer2.GuildRegistry.cast_if_exists(gid, :leave_channel, [msg])
+        cast_if_exists(gid, :leave_channel, [msg])
 
       # FIXME: We probably need "!ddq help"
 
@@ -37,23 +37,37 @@ defmodule Daidoquer2.DiscordEventConsumer do
         {:VOICE_SPEAKING_UPDATE,
          %Nostrum.Struct.Event.SpeakingUpdate{guild_id: guild_id, speaking: false}, _}
       ) do
-    Daidoquer2.GuildRegistry.cast_if_exists(guild_id, :notify_speaking_ended)
+    cast_if_exists(guild_id, :notify_speaking_ended)
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
-    Daidoquer2.GuildRegistry.cast_if_exists(state.guild_id, :notify_voice_state_updated, [state])
+    cast_if_exists(state.guild_id, :notify_voice_state_updated, [state])
   end
 
   def handle_event({:VOICE_READY, state, _}) do
-    Daidoquer2.GuildRegistry.cast_if_exists(state.guild_id, :notify_voice_ready, [state])
+    cast_if_exists(state.guild_id, :notify_voice_ready, [state])
   end
 
   def handle_event({:THREAD_CREATE, channel, _}) do
-    Daidoquer2.GuildRegistry.cast_if_exists(channel.guild_id, :thread_create, [channel])
+    cast_if_exists(channel.guild_id, :thread_create, [channel])
   end
 
   def handle_event(_event) do
     # Logger.debug("DISCORD EVENT: #{inspect(event)}")
     :noop
+  end
+
+  defp cast(guild_id, funname, args) do
+    Daidoquer2.GuildRegistry.apply(:guild, guild_id, :"Elixir.Daidoquer2.Guild", funname, args)
+  end
+
+  defp cast_if_exists(guild_id, funname, args \\ []) do
+    Daidoquer2.GuildRegistry.apply_if_exists(
+      :guild,
+      guild_id,
+      :"Elixir.Daidoquer2.Guild",
+      funname,
+      args
+    )
   end
 end

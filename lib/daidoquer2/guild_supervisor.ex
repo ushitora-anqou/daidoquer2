@@ -9,6 +9,10 @@ defmodule Daidoquer2.GuildSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
+  def add_speaker(guild_id) do
+    DynamicSupervisor.start_child(__MODULE__, {Daidoquer2.GuildSpeaker, guild_id})
+  end
+
   def add_guild(guild_id) do
     DynamicSupervisor.start_child(__MODULE__, {Daidoquer2.Guild, guild_id})
   end
