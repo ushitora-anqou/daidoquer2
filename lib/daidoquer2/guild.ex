@@ -53,6 +53,10 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:thread_create, channel})
   end
 
+  def get_num_users_in_channel(pid) do
+    GenServer.call(pid, :num_users_in_channel)
+  end
+
   #####
   # GenServer callbacks
 
@@ -290,6 +294,10 @@ defmodule Daidoquer2.Guild do
   def handle_cast(:speaking_ended, state) do
     S.notify_speaking_ended(state.speaker)
     {:noreply, state}
+  end
+
+  def handle_call(:num_users_in_channel, _from, state) do
+    {:reply, state.num_users_in_channel, state}
   end
 
   #####

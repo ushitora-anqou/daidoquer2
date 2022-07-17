@@ -4,6 +4,7 @@ defmodule Daidoquer2.GuildSpeaker do
   require Logger
 
   alias Daidoquer2.DiscordAPI, as: D
+  alias Daidoquer2.Guild, as: G
 
   #####
   # External API
@@ -164,7 +165,15 @@ defmodule Daidoquer2.GuildSpeaker do
   # Actions for handle_state
 
   defp queue_msg(state, msg) do
-    %{state | msg_queue: :queue.in(msg, state.msg_queue)}
+    num_users = G.get_num_users_in_channel({:via, Registry, {Registry.Guild, state.guild_id}})
+
+    if num_users == 0 do
+      # No need to speak
+      Logger.debug("GuildSpeaker: #{state.guild_id}: no need to speak: #{inspect(msg)}")
+      state
+    else
+      %{state | msg_queue: :queue.in(msg, state.msg_queue)}
+    end
   end
 
   defp consume_queue(state) do
