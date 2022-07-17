@@ -331,12 +331,12 @@ defmodule Daidoquer2.GuildSpeaker do
     {:ok, response} =
       GoogleApi.TextToSpeech.V1.Api.Text.texttospeech_text_synthesize(client, body: request)
 
-    Base.decode64!(response.audioContent)
+    {:ok, Base.decode64!(response.audioContent)}
   end
 
   defp tts_via_post(text, url) do
     res = HTTPoison.post!(url, text)
-    res.body
+    {:ok, res.body}
   end
 
   defp tts_via_sushikicom(text, param) do
@@ -348,7 +348,7 @@ defmodule Daidoquer2.GuildSpeaker do
         {:form, [{"text", text}, {"key", key}]}
       )
 
-    res.body
+    {:ok, res.body}
   end
 
   defp tts_via_voicevox_engine(text, url, speaker) do
@@ -357,48 +357,47 @@ defmodule Daidoquer2.GuildSpeaker do
 
     with {:ok, res1} <- post(url1, ""),
          {:ok, res2} <- post(url2, res1.body, [{"Content-Type", "application/json"}]) do
-      res2.body
-    else
-      {:error, res} -> raise inspect(res)
+      {:ok, res2.body}
+      # else -> {:error, error}
     end
   end
 
   defp do_start_speaking(guild_id, text, chara) do
-    try do
-      true = D.voice_ready?(guild_id)
+    true = D.voice_ready?(guild_id)
 
-      speech =
-        case chara do
-          {:post, url} ->
-            tts_via_post(text, url)
+    speech_res =
+      case chara do
+        {:post, url} ->
+          tts_via_post(text, url)
 
-          {:google, chara} ->
-            tts_via_google(text, chara)
+        {:google, chara} ->
+          tts_via_google(text, chara)
 
-          {:sushikicom, param} ->
-            tts_via_sushikicom(text, param)
+        {:sushikicom, param} ->
+          tts_via_sushikicom(text, param)
 
-          {:voicevox_engine, url, speaker} ->
-            tts_via_voicevox_engine(text, url, speaker)
-        end
+        {:voicevox_engine, url, speaker} ->
+          tts_via_voicevox_engine(text, url, speaker)
+      end
 
-      # Here, we intentionally do not use the option :pipe for D.voice_play!,
-      # because it does not work properly when audio data is short (about <2 seconds).
-      # I belive that this is NOT a problem of :audio_frames_per_burst, which is
-      # explicitly stated in the Nostrum document, but a problem of Port of Elixir.
-      # When the audio data is short, FFmpeg's output finishes before the buffer of Port
-      # becomes full. However, FFmpeg cannot exit (i.e., Port cannot know when FFmpeg
-      # finishes its output) when we use :pipe, so it causes timeout of
-      # Nostrum.Voice.Audio.try_send_data/3.
-      # To avoid this situation, I use :url here, because FFmpeg can exit by doing so.
-      Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
-      tmpfile_path = Application.fetch_env!(:daidoquer2, :tmpfile_path)
-      File.write(tmpfile_path, speech, [:binary])
-      D.voice_play!(guild_id, tmpfile_path, :url, realtime: false)
+    case speech_res do
+      {:ok, speech} ->
+        # Here, we intentionally do not use the option :pipe for D.voice_play!,
+        # because it does not work properly when audio data is short (about <2 seconds).
+        # I belive that this is NOT a problem of :audio_frames_per_burst, which is
+        # explicitly stated in the Nostrum document, but a problem of Port of Elixir.
+        # When the audio data is short, FFmpeg's output finishes before the buffer of Port
+        # becomes full. However, FFmpeg cannot exit (i.e., Port cannot know when FFmpeg
+        # finishes its output) when we use :pipe, so it causes timeout of
+        # Nostrum.Voice.Audio.try_send_data/3.
+        # To avoid this situation, I use :url here, because FFmpeg can exit by doing so.
+        Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
+        tmpfile_path = Application.fetch_env!(:daidoquer2, :tmpfile_path)
+        File.write(tmpfile_path, speech, [:binary])
+        D.voice_play!(guild_id, tmpfile_path, :url, realtime: false)
+        :ok
 
-      :ok
-    rescue
-      e ->
+      {:error, e} ->
         Logger.error(
           "Can't speak #{inspect(text)} (#{guild_id},#{inspect(chara)}): #{inspect(e)}"
         )
