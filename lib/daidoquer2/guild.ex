@@ -170,10 +170,14 @@ defmodule Daidoquer2.Guild do
         Logger.debug("Joined (#{state.guild_id}) #{name}")
         S.cast_bare_message(state.speaker, "#{name}さんが参加しました。")
 
-        num_users_in_channel = state.num_users_in_channel + 1
-        new_state = %{new_state | num_users_in_channel: num_users_in_channel}
-
-        Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
+        new_state =
+          if D.user!(voice_state.user_id).bot do
+            new_state
+          else
+            num_users_in_channel = state.num_users_in_channel + 1
+            Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
+            %{new_state | num_users_in_channel: num_users_in_channel}
+          end
 
         {:noreply, new_state}
 
@@ -183,12 +187,18 @@ defmodule Daidoquer2.Guild do
         Logger.debug("Left (#{state.guild_id}) #{name}")
         S.cast_bare_message(state.speaker, "#{name}さんが離れました。")
 
-        num_users_in_channel = state.num_users_in_channel - 1
-        new_state = %{new_state | num_users_in_channel: num_users_in_channel}
+        new_state =
+          if D.user!(voice_state.user_id).bot do
+            new_state
+          else
+            num_users_in_channel = state.num_users_in_channel - 1
 
-        if num_users_in_channel == 0 do
-          Daidoquer2.GuildKiller.set_timer(state.guild_id)
-        end
+            if num_users_in_channel == 0 do
+              Daidoquer2.GuildKiller.set_timer(state.guild_id)
+            end
+
+            %{new_state | num_users_in_channel: num_users_in_channel}
+          end
 
         {:noreply, new_state}
 
