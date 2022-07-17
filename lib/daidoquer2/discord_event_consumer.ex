@@ -16,8 +16,9 @@ defmodule Daidoquer2.DiscordEventConsumer do
 
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
     name = guild_name(msg.guild_id)
+    prompt_regex = Application.fetch_env!(:daidoquer2, :prompt_regex)
 
-    case Regex.run(~r/^!ddq2?\s+(.+)$/, msg.content) do
+    case Regex.run(prompt_regex, msg.content) do
       nil ->
         G.cast_message(name, msg)
 

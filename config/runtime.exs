@@ -28,6 +28,7 @@ config :nostrum,
 # config :goth, disabled: true
 
 config :daidoquer2,
+  prompt_regex: ~r/^!ddqa\s+(.+)$/,
   default_post_url: "http://localhost:8399",
   uid2chara:
     %{
