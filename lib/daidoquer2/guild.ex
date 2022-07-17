@@ -87,20 +87,6 @@ defmodule Daidoquer2.Guild do
      }}
   end
 
-  defp speaker(guild_id, funname, args \\ []) do
-    Daidoquer2.GuildRegistry.apply_if_exists(
-      :speaker,
-      guild_id,
-      :"Elixir.Daidoquer2.GuildSpeaker",
-      funname,
-      args
-    )
-  end
-
-  defp speak_bare_message(guild_id, msg) do
-    speaker(guild_id, :cast_bare_message, [msg])
-  end
-
   def handle_cast(:set_pid, state) do
     case Daidoquer2.GuildRegistry.set_pid(:guild, state.guild_id) do
       :ok -> {:noreply, state}
@@ -218,11 +204,6 @@ defmodule Daidoquer2.Guild do
     end
   end
 
-  def handle_cast(:voice_ready, state) do
-    speaker(state.guild_id, :notify_voice_ready)
-    {:noreply, state}
-  end
-
   def handle_cast({:join, msg}, state) do
     true = msg.guild_id == state.guild_id
 
@@ -289,6 +270,11 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
+  def handle_cast(:voice_ready, state) do
+    speaker(state.guild_id, :notify_voice_ready)
+    {:noreply, state}
+  end
+
   def handle_cast({:discord_message, msg}, state) do
     speaker(state.guild_id, :cast_discord_message, [msg])
     {:noreply, state}
@@ -302,5 +288,22 @@ defmodule Daidoquer2.Guild do
   def handle_cast(:speaking_ended, state) do
     speaker(state.guild_id, :notify_speaking_ended)
     {:noreply, state}
+  end
+
+  #####
+  # Internals
+
+  defp speaker(guild_id, funname, args \\ []) do
+    Daidoquer2.GuildRegistry.apply_if_exists(
+      :speaker,
+      guild_id,
+      :"Elixir.Daidoquer2.GuildSpeaker",
+      funname,
+      args
+    )
+  end
+
+  defp speak_bare_message(guild_id, msg) do
+    speaker(guild_id, :cast_bare_message, [msg])
   end
 end
