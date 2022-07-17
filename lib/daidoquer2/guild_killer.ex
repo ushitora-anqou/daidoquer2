@@ -3,8 +3,6 @@ defmodule Daidoquer2.GuildKiller do
 
   require Logger
 
-  @seconds_to_wait 10 * 60 * 1000
-
   #####
   # External API
 
@@ -28,8 +26,9 @@ defmodule Daidoquer2.GuildKiller do
   end
 
   def handle_cast({:set_timer, guild_id}, state) do
+    ms_to_wait = Application.fetch_env!(:daidoquer2, :ms_before_leave)
     ref = make_ref()
-    Process.send_after(self(), {:timeout, ref, guild_id}, @seconds_to_wait)
+    Process.send_after(self(), {:timeout, ref, guild_id}, ms_to_wait)
     Logger.debug("Setting kill timer for #{guild_id} #{inspect(ref)}")
     {:noreply, Map.put(state, guild_id, ref)}
   end
