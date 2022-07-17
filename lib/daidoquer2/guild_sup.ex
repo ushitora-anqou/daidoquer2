@@ -1,8 +1,9 @@
 defmodule Daidoquer2.GuildSup do
   use Supervisor
 
-  def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg)
+  def start_link(guild_id) do
+    name = {:via, Registry, {Registry.GuildSup, guild_id}}
+    Supervisor.start_link(__MODULE__, guild_id, name: name)
   end
 
   def child_spec(arg) do
@@ -17,7 +18,7 @@ defmodule Daidoquer2.GuildSup do
   def init(guild_id) do
     children = [
       {Daidoquer2.GuildSpeaker, guild_id},
-      {Daidoquer2.Guild, {self(), guild_id}}
+      {Daidoquer2.Guild, guild_id}
     ]
 
     Supervisor.init(children, strategy: :one_for_all)

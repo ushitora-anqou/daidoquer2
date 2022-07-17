@@ -3,6 +3,8 @@ defmodule Daidoquer2.DiscordEventConsumer do
 
   require Logger
 
+  alias Daidoquer2.Guild, as: G
+
   def start_link do
     Consumer.start_link(__MODULE__)
   end
@@ -13,17 +15,18 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
-    gid = msg.guild_id
+    name = guild_name(msg.guild_id)
 
     case Regex.run(~r/^!ddq2?\s+(.+)$/, msg.content) do
       nil ->
-        cast_if_exists(gid, :cast_message, [msg])
+        G.cast_message(name, msg)
 
       [_, "join"] ->
-        cast(gid, :join_channel, [msg])
+        Daidoquer2.GuildSupSup.add_guild(msg.guild_id)
+        G.join_channel(name, msg)
 
       [_, "leave"] ->
-        cast_if_exists(gid, :leave_channel, [msg])
+        G.leave_channel(name, msg)
 
       # FIXME: We probably need "!ddq help"
 
@@ -37,19 +40,19 @@ defmodule Daidoquer2.DiscordEventConsumer do
         {:VOICE_SPEAKING_UPDATE,
          %Nostrum.Struct.Event.SpeakingUpdate{guild_id: guild_id, speaking: false}, _}
       ) do
-    cast_if_exists(guild_id, :notify_speaking_ended)
+    G.notify_speaking_ended(guild_name(guild_id))
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
-    cast_if_exists(state.guild_id, :notify_voice_state_updated, [state])
+    G.notify_voice_state_updated(guild_name(state.guild_id), state)
   end
 
   def handle_event({:VOICE_READY, state, _}) do
-    cast_if_exists(state.guild_id, :notify_voice_ready, [state])
+    G.notify_voice_ready(guild_name(state.guild_id), state)
   end
 
   def handle_event({:THREAD_CREATE, channel, _}) do
-    cast_if_exists(channel.guild_id, :thread_create, [channel])
+    G.thread_create(guild_name(channel.guild_id), channel)
   end
 
   def handle_event(_event) do
@@ -57,17 +60,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
     :noop
   end
 
-  defp cast(guild_id, funname, args) do
-    Daidoquer2.GuildRegistry.apply(:guild, guild_id, :"Elixir.Daidoquer2.Guild", funname, args)
-  end
-
-  defp cast_if_exists(guild_id, funname, args \\ []) do
-    Daidoquer2.GuildRegistry.apply_if_exists(
-      :guild,
-      guild_id,
-      :"Elixir.Daidoquer2.Guild",
-      funname,
-      args
-    )
+  defp guild_name(guild_id) do
+    {:via, Registry, {Registry.Guild, guild_id}}
   end
 end

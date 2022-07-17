@@ -9,7 +9,8 @@ defmodule Daidoquer2.GuildSpeaker do
   # External API
 
   def start_link(guild_id) do
-    GenServer.start_link(__MODULE__, guild_id)
+    name = {:via, Registry, {Registry.Speaker, guild_id}}
+    GenServer.start_link(__MODULE__, guild_id, name: name)
   end
 
   def cast_discord_message(pid, msg) do
@@ -41,8 +42,6 @@ defmodule Daidoquer2.GuildSpeaker do
   # GenServer callbacks
 
   def init(guild_id) do
-    GenServer.cast(self(), :set_pid)
-
     voice_ready = D.voice_ready?(guild_id)
     initial_state = if voice_ready, do: :ready, else: :not_ready
 
@@ -54,13 +53,6 @@ defmodule Daidoquer2.GuildSpeaker do
        msg_queue: :queue.new(),
        state: initial_state
      }}
-  end
-
-  def handle_cast(:set_pid, state) do
-    case Daidoquer2.GuildRegistry.set_pid(:speaker, state.guild_id) do
-      :ok -> {:noreply, state}
-      _ -> {:stop, :normal, state}
-    end
   end
 
   def handle_cast(event, state) do

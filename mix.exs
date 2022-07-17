@@ -32,7 +32,6 @@ defmodule Daidoquer2.MixProject do
       {:nostrum, "~> 0.6.0"},
       {:httpoison, "~> 1.8.0"},
       {:temp, "~> 0.4"},
-      {:gproc, "~> 0.8.0"},
       {:mbcs_rs, "~> 0.1"},
       # {:emojix, "~> 0.3"},
       {:emojix, git: "https://github.com/ushitora-anqou/emojix.git"},

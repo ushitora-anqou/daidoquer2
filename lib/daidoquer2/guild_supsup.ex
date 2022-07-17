@@ -1,6 +1,14 @@
 defmodule Daidoquer2.GuildSupSup do
   use DynamicSupervisor
 
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]},
+      restart: :temporary
+    }
+  end
+
   def start_link(_) do
     DynamicSupervisor.start_link(__MODULE__, :no_args, name: __MODULE__)
   end

@@ -4,12 +4,14 @@ defmodule Daidoquer2.Guild do
   require Logger
 
   alias Daidoquer2.DiscordAPI, as: D
+  alias Daidoquer2.GuildSpeaker, as: S
 
   #####
   # External API
 
   def start_link(guild_id) do
-    GenServer.start_link(__MODULE__, guild_id)
+    name = {:via, Registry, {Registry.Guild, guild_id}}
+    GenServer.start_link(__MODULE__, guild_id, name: name)
   end
 
   def join_channel(pid, msg) do
@@ -54,13 +56,12 @@ defmodule Daidoquer2.Guild do
   #####
   # GenServer callbacks
 
-  def init({sup, guild_id}) do
-    GenServer.cast(self(), {:initialize_state, sup, guild_id})
-    GenServer.cast(self(), :set_pid)
+  def init(guild_id) do
+    GenServer.cast(self(), {:initialize_state, guild_id})
     {:ok, %{}}
   end
 
-  def handle_cast({:initialize_state, sup, guild_id}, _) do
+  def handle_cast({:initialize_state, guild_id}, _) do
     voice_connected = D.voice(guild_id) != nil
     is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
 
@@ -71,7 +72,8 @@ defmodule Daidoquer2.Guild do
     state = %{
       guild_id: guild_id,
       voice_states: %{},
-      num_users_in_channel: 0
+      num_users_in_channel: 0,
+      speaker: {:via, Registry, {Registry.Speaker, guild_id}}
     }
 
     cond do
@@ -89,15 +91,8 @@ defmodule Daidoquer2.Guild do
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
         # Invalid state
-        Supervisor.stop(sup)
+        Supervisor.stop({:via, Registry, {Registry.GuildSup, guild_id}})
         {:stop, :normal, state}
-    end
-  end
-
-  def handle_cast(:set_pid, state) do
-    case Daidoquer2.GuildRegistry.set_pid(:guild, state.guild_id) do
-      :ok -> {:noreply, state}
-      _ -> {:stop, :normal, state}
     end
   end
 
@@ -106,7 +101,7 @@ defmodule Daidoquer2.Guild do
     user_name = D.display_name_of_user!(state.guild_id, channel.owner_id)
 
     Logger.debug("Thread created (#{state.guild_id}) #{thread_name} by #{user_name}")
-    speak_bare_message(state.guild_id, "#{user_name}さんがスレッド「#{thread_name}」を作りました。")
+    S.cast_bare_message(state.speaker, "#{user_name}さんがスレッド「#{thread_name}」を作りました。")
 
     {:noreply, state}
   end
@@ -150,7 +145,7 @@ defmodule Daidoquer2.Guild do
     cond do
       my_joining ->
         # If _I_ am joining
-        speak_bare_message(state.guild_id, "こんにちは、daidoquer2です。やさしくしてね。")
+        S.cast_bare_message(state.speaker, "こんにちは、daidoquer2です。やさしくしてね。")
 
         new_state = %{
           new_state
@@ -168,7 +163,7 @@ defmodule Daidoquer2.Guild do
         # Someone joined the channel
         name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Joined (#{state.guild_id}) #{name}")
-        speak_bare_message(state.guild_id, "#{name}さんが参加しました。")
+        S.cast_bare_message(state.speaker, "#{name}さんが参加しました。")
 
         num_users_in_channel = state.num_users_in_channel + 1
         new_state = %{new_state | num_users_in_channel: num_users_in_channel}
@@ -181,7 +176,7 @@ defmodule Daidoquer2.Guild do
         # Someone left the channel
         name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Left (#{state.guild_id}) #{name}")
-        speak_bare_message(state.guild_id, "#{name}さんが離れました。")
+        S.cast_bare_message(state.speaker, "#{name}さんが離れました。")
 
         num_users_in_channel = state.num_users_in_channel - 1
         new_state = %{new_state | num_users_in_channel: num_users_in_channel}
@@ -196,14 +191,14 @@ defmodule Daidoquer2.Guild do
         # Someone started streaming
         name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Started streaming (#{state.guild_id}) #{name}")
-        speak_bare_message(state.guild_id, "#{name}さんがライブを始めました。")
+        S.cast_bare_message(state.speaker, "#{name}さんがライブを始めました。")
         {:noreply, new_state}
 
       stop_streaming ->
         # Someone stoped streaming
         name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
         Logger.debug("Stoped streaming (#{state.guild_id}) #{name}")
-        speak_bare_message(state.guild_id, "#{name}さんがライブを終了しました。")
+        S.cast_bare_message(state.speaker, "#{name}さんがライブを終了しました。")
         {:noreply, new_state}
 
       true ->
@@ -248,8 +243,8 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast(:kick, state) do
     # Leave the channel now
-    speaker(state.guild_id, :stop_speaking_and_clear_message_queue)
-    speaker(state.guild_id, :schedule_leave)
+    S.stop_speaking_and_clear_message_queue(state.speaker)
+    S.schedule_leave(state.speaker)
     {:noreply, state}
   end
 
@@ -269,48 +264,34 @@ defmodule Daidoquer2.Guild do
         D.text_message(msg.channel_id, "Call from the same VC channel")
 
       true ->
-        speaker(state.guild_id, :stop_speaking_and_clear_message_queue)
-        speak_bare_message(state.guild_id, "。お相手はdaidoquer2でした。またね。")
-        speaker(state.guild_id, :schedule_leave)
+        S.stop_speaking_and_clear_message_queue(state.speaker)
+        S.cast_bare_message(state.speaker, "。お相手はdaidoquer2でした。またね。")
+        S.schedule_leave(state.speaker)
     end
 
     {:noreply, state}
   end
 
   def handle_cast(:voice_ready, state) do
-    speaker(state.guild_id, :notify_voice_ready)
+    S.notify_voice_ready(state.speaker)
     {:noreply, state}
   end
 
   def handle_cast({:discord_message, msg}, state) do
-    speaker(state.guild_id, :cast_discord_message, [msg])
+    S.cast_discord_message(state.speaker, msg)
     {:noreply, state}
   end
 
   def handle_cast({:bare_message, text}, state) do
-    speaker(state.guild_id, :bare_message, [text])
+    S.cast_bare_message(state.speaker, text)
     {:noreply, state}
   end
 
   def handle_cast(:speaking_ended, state) do
-    speaker(state.guild_id, :notify_speaking_ended)
+    S.notify_speaking_ended(state.speaker)
     {:noreply, state}
   end
 
   #####
   # Internals
-
-  defp speaker(guild_id, funname, args \\ []) do
-    Daidoquer2.GuildRegistry.apply_if_exists(
-      :speaker,
-      guild_id,
-      :"Elixir.Daidoquer2.GuildSpeaker",
-      funname,
-      args
-    )
-  end
-
-  defp speak_bare_message(guild_id, msg) do
-    speaker(guild_id, :cast_bare_message, [msg])
-  end
 end

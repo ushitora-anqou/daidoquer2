@@ -11,7 +11,10 @@ defmodule Daidoquer2.Application do
       # {Daidoquer2.Worker, arg}
       Daidoquer2.DiscordEventConsumer,
       Daidoquer2.GuildSupSup,
-      Daidoquer2.GuildKiller
+      Daidoquer2.GuildKiller,
+      {Registry, [keys: :unique, name: Registry.GuildSup]},
+      {Registry, [keys: :unique, name: Registry.Guild]},
+      {Registry, [keys: :unique, name: Registry.Speaker]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

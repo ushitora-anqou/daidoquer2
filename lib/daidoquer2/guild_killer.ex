@@ -46,14 +46,7 @@ defmodule Daidoquer2.GuildKiller do
         ^ref ->
           # The guild should be killed.
           Logger.debug("GuildKiller will kill #{guild_id} #{inspect(ref)}")
-
-          Daidoquer2.GuildRegistry.apply_if_exists(
-            :guild,
-            guild_id,
-            :"Elixir.Daidoquer2.Guild",
-            :kick_from_channel
-          )
-
+          Daidoquer2.Guild.kick_from_channel({:via, Registry, {Registry.Guild, guild_id}})
           :pop
 
         current_ref ->
