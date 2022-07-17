@@ -14,9 +14,8 @@ defmodule Daidoquer2.GuildRegistry do
 
   def apply(key, guild_id, module, funname, args \\ []) do
     if where(key, guild_id) == :undefined do
-      {:ok, _} = Daidoquer2.GuildSupervisor.add_speaker(guild_id)
+      {:ok, _} = Daidoquer2.GuildSupSup.add_guild(guild_id)
       :gproc.await(gproc_id(:speaker, guild_id))
-      {:ok, _} = Daidoquer2.GuildSupervisor.add_guild(guild_id)
       :gproc.await(gproc_id(:guild, guild_id))
     end
 

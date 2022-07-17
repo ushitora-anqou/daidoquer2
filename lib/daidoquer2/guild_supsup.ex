@@ -1,4 +1,4 @@
-defmodule Daidoquer2.GuildSupervisor do
+defmodule Daidoquer2.GuildSupSup do
   use DynamicSupervisor
 
   def start_link(_) do
@@ -9,11 +9,7 @@ defmodule Daidoquer2.GuildSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  def add_speaker(guild_id) do
-    DynamicSupervisor.start_child(__MODULE__, {Daidoquer2.GuildSpeaker, guild_id})
-  end
-
   def add_guild(guild_id) do
-    DynamicSupervisor.start_child(__MODULE__, {Daidoquer2.Guild, guild_id})
+    DynamicSupervisor.start_child(__MODULE__, {Daidoquer2.GuildSup, guild_id})
   end
 end
