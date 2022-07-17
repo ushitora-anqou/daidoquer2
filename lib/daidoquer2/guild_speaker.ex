@@ -111,6 +111,12 @@ defmodule Daidoquer2.GuildSpeaker do
   ## STATE = :ready
   #####
 
+  def handle_state(:ready, :voice_ready, state) do
+    # When ddq is in a VC, moving it to or sending !ddq join from another VC will send :voice_ready.
+    # Let's ignore this message.
+    {:noreply, state}
+  end
+
   def handle_state(:ready, {:message, msg}, state) do
     # Start speaking the message
     next_state =
@@ -134,6 +140,12 @@ defmodule Daidoquer2.GuildSpeaker do
   #####
   ## STATE = :speaking
   #####
+
+  def handle_state(:speaking, :voice_ready, state) do
+    # When ddq is in a VC, moving it to or sending !ddq join from another VC will send :voice_ready.
+    # Let's ignore this message.
+    {:noreply, state}
+  end
 
   def handle_state(:speaking, {:message, msg}, state) do
     # Currently speaking. Queue the message.
