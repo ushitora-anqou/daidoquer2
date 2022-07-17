@@ -43,6 +43,10 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :enable)
   end
 
+  def cast_disable(pid) do
+    GenServer.cast(pid, :disable)
+  end
+
   #####
   # GenServer callbacks
 
@@ -63,6 +67,10 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_cast(:enable, state) do
     {:noreply, %{state | enabled: true}}
+  end
+
+  def handle_cast(:disable, state) do
+    disable(state)
   end
 
   def handle_cast(event, state) do
@@ -211,6 +219,10 @@ defmodule Daidoquer2.GuildSpeaker do
   def leave_vc(state) do
     Logger.debug("GuildSpeaker: #{state.guild_id}: stopping")
     D.leave_voice_channel(state.guild_id)
+    disable(state)
+  end
+
+  def disable(state) do
     {:noreply, %{state | enabled: false, state: :not_ready, msg_queue: :queue.new()}}
   end
 

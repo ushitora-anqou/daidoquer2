@@ -162,6 +162,7 @@ defmodule Daidoquer2.Guild do
       my_leaving ->
         # _I_ am leaving
         Logger.debug("Leaving #{state.guild_id}")
+        S.cast_disable(state.speaker)
         {:noreply, new_state}
 
       joining ->
