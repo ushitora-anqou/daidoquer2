@@ -54,37 +54,44 @@ defmodule Daidoquer2.Guild do
   #####
   # GenServer callbacks
 
-  def init(guild_id) do
+  def init({sup, guild_id}) do
+    GenServer.cast(self(), {:initialize_state, sup, guild_id})
     GenServer.cast(self(), :set_pid)
+    {:ok, %{}}
+  end
 
-    voice_connected =
-      try do
-        D.voice(guild_id) != nil
-      rescue
-        e ->
-          Logger.error("INIT: Failed to get voice status (#{guild_id}): #{inspect(e)}")
-          false
-      end
+  def handle_cast({:initialize_state, sup, guild_id}, _) do
+    voice_connected = D.voice(guild_id) != nil
+    is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
 
-    Logger.debug("INIT: Voice status (#{guild_id}): #{voice_connected}")
+    Logger.debug(
+      "INIT: Voice status (#{guild_id}): voice_connected=#{voice_connected}: is_in_vc=#{is_in_vc}"
+    )
 
-    num_users_in_channel =
-      if voice_connected do
-        D.num_of_users_in_my_channel!(guild_id)
-      else
-        0
-      end
+    state = %{
+      guild_id: guild_id,
+      voice_states: %{},
+      num_users_in_channel: 0
+    }
 
-    if voice_connected && num_users_in_channel == 0 do
-      Daidoquer2.GuildKiller.set_timer(guild_id)
+    cond do
+      !is_in_vc && !voice_connected ->
+        {:noreply, state}
+
+      is_in_vc && voice_connected ->
+        num_users = D.num_of_users_in_my_channel!(guild_id)
+
+        if num_users == 0 do
+          Daidoquer2.GuildKiller.set_timer(guild_id)
+        end
+
+        {:noreply, %{state | num_users_in_channel: num_users}}
+
+      (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
+        # Invalid state
+        Supervisor.stop(sup)
+        {:stop, :normal, state}
     end
-
-    {:ok,
-     %{
-       guild_id: guild_id,
-       voice_states: %{},
-       num_users_in_channel: num_users_in_channel
-     }}
   end
 
   def handle_cast(:set_pid, state) do
