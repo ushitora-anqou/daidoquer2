@@ -210,14 +210,20 @@ defmodule Daidoquer2.GuildSpeaker do
         {:bare, text} -> {text, nil}
       end
 
-    with {:ok, text} <-
-           text
+    text =
+      case text
            |> replace_mention_with_display_name(guild_id)
            |> replace_channel_id_with_its_name()
-           |> Daidoquer2.MessageSanitizer.sanitize(),
-         chara <- select_chara_from_uid(uid),
-         :ok <- do_start_speaking(guild_id, text, chara) do
-      :ok
+           |> Daidoquer2.MessageSanitizer.sanitize() do
+        {:ok, text} -> text
+        _ -> ""
+      end
+
+    if String.length(text) == 0 do
+      {:error, :speak_empty}
+    else
+      chara = select_chara_from_uid(uid)
+      do_start_speaking(guild_id, text, chara)
     end
   end
 
