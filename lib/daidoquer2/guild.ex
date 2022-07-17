@@ -149,6 +149,7 @@ defmodule Daidoquer2.Guild do
     cond do
       my_joining ->
         # If _I_ am joining
+        S.cast_enable(state.speaker)
         S.cast_bare_message(state.speaker, "こんにちは、daidoquer2です。やさしくしてね。")
 
         new_state = %{

@@ -39,6 +39,10 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :schedule_leave)
   end
 
+  def cast_enable(pid) do
+    GenServer.cast(pid, :enable)
+  end
+
   #####
   # GenServer callbacks
 
@@ -52,24 +56,34 @@ defmodule Daidoquer2.GuildSpeaker do
      %{
        guild_id: guild_id,
        msg_queue: :queue.new(),
-       state: initial_state
+       state: initial_state,
+       enabled: false
      }}
   end
 
+  def handle_cast(:enable, state) do
+    {:noreply, %{state | enabled: true}}
+  end
+
   def handle_cast(event, state) do
-    res = handle_state(state.state, event, state)
+    if state.enabled do
+      res = handle_state(state.state, event, state)
 
-    next_state =
-      case res do
-        {:noreply, state} -> state.state
-        {:stop, :normal, state} -> state.state
-      end
+      next_state =
+        case res do
+          {:noreply, state} -> state.state
+          {:stop, :normal, state} -> state.state
+        end
 
-    Logger.debug(
-      "GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: #{inspect(state.state)} -> #{inspect(next_state)}"
-    )
+      Logger.debug(
+        "GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: #{inspect(state.state)} -> #{inspect(next_state)}"
+      )
 
-    res
+      res
+    else
+      Logger.debug("GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: disabled")
+      {:noreply, state}
+    end
   end
 
   #####
@@ -197,7 +211,7 @@ defmodule Daidoquer2.GuildSpeaker do
   def leave_vc(state) do
     Logger.debug("GuildSpeaker: #{state.guild_id}: stopping")
     D.leave_voice_channel(state.guild_id)
-    {:noreply, %{state | state: :not_ready, msg_queue: :queue.new()}}
+    {:noreply, %{state | enabled: false, state: :not_ready, msg_queue: :queue.new()}}
   end
 
   #####
