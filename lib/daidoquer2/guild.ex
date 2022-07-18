@@ -5,6 +5,7 @@ defmodule Daidoquer2.Guild do
 
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GuildSpeaker, as: S
+  alias Daidoquer2.GuildDiscordEventHandler, as: H
 
   #####
   # External API
@@ -103,10 +104,7 @@ defmodule Daidoquer2.Guild do
   def handle_cast({:thread_create, channel}, state) do
     thread_name = channel.name
     user_name = D.display_name_of_user!(state.guild_id, channel.owner_id)
-
-    Logger.debug("Thread created (#{state.guild_id}) #{thread_name} by #{user_name}")
-    S.cast_bare_message(state.speaker, "#{user_name}さんがスレッド「#{thread_name}」を作りました。")
-
+    H.thread_create(thread_name, user_name, state)
     {:noreply, state}
   end
 
@@ -148,54 +146,40 @@ defmodule Daidoquer2.Guild do
 
     cond do
       my_joining ->
-        # If _I_ am joining
-        S.cast_enable(state.speaker)
-        S.cast_bare_message(state.speaker, "こんにちは、daidoquer2です。やさしくしてね。")
+        H.i_join(new_state)
 
-        new_state = %{
-          new_state
-          | num_users_in_channel: D.num_of_users_in_my_channel!(state.guild_id)
-        }
-
-        {:noreply, new_state}
+        {:noreply,
+         %{new_state | num_users_in_channel: D.num_of_users_in_my_channel!(state.guild_id)}}
 
       my_leaving ->
-        # _I_ am leaving
-        Logger.debug("Leaving #{state.guild_id}")
-        S.cast_disable(state.speaker)
+        H.i_leave(new_state)
         {:noreply, new_state}
 
       joining ->
-        # Someone joined the channel
-        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
-        Logger.debug("Joined (#{state.guild_id}) #{name}")
-        S.cast_bare_message(state.speaker, "#{name}さんが参加しました。")
+        H.someone_join(voice_state.user_id, new_state)
 
         new_state =
           if D.user!(voice_state.user_id).bot do
             new_state
           else
-            num_users_in_channel = state.num_users_in_channel + 1
-            Daidoquer2.GuildKiller.cancel_timer(state.guild_id)
+            num_users_in_channel = new_state.num_users_in_channel + 1
+            Daidoquer2.GuildKiller.cancel_timer(new_state.guild_id)
             %{new_state | num_users_in_channel: num_users_in_channel}
           end
 
         {:noreply, new_state}
 
       leaving ->
-        # Someone left the channel
-        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
-        Logger.debug("Left (#{state.guild_id}) #{name}")
-        S.cast_bare_message(state.speaker, "#{name}さんが離れました。")
+        H.someone_leave(voice_state.user_id, new_state)
 
         new_state =
           if D.user!(voice_state.user_id).bot do
             new_state
           else
-            num_users_in_channel = state.num_users_in_channel - 1
+            num_users_in_channel = new_state.num_users_in_channel - 1
 
             if num_users_in_channel == 0 do
-              Daidoquer2.GuildKiller.set_timer(state.guild_id)
+              Daidoquer2.GuildKiller.set_timer(new_state.guild_id)
             end
 
             %{new_state | num_users_in_channel: num_users_in_channel}
@@ -204,17 +188,11 @@ defmodule Daidoquer2.Guild do
         {:noreply, new_state}
 
       start_streaming ->
-        # Someone started streaming
-        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
-        Logger.debug("Started streaming (#{state.guild_id}) #{name}")
-        S.cast_bare_message(state.speaker, "#{name}さんがライブを始めました。")
+        H.start_streaming(voice_state.user_id, new_state)
         {:noreply, new_state}
 
       stop_streaming ->
-        # Someone stoped streaming
-        name = D.display_name_of_user!(state.guild_id, voice_state.user_id)
-        Logger.debug("Stoped streaming (#{state.guild_id}) #{name}")
-        S.cast_bare_message(state.speaker, "#{name}さんがライブを終了しました。")
+        H.stop_streaming(voice_state.user_id, new_state)
         {:noreply, new_state}
 
       true ->
@@ -238,30 +216,17 @@ defmodule Daidoquer2.Guild do
 
     cond do
       voice_channel_id == nil ->
-        # The user doesn't belong to VC
-        D.text_message(msg.channel_id, "Call from VC")
+        H.summon_not_from_vc(msg.channel_id, new_state)
         {:noreply, new_state}
 
       voice_channel_id == D.voice_channel_of_user!(state.guild_id, D.me().id) ->
-        # Already joined
-        channel = D.channel!(msg.channel_id)
-        D.text_message(msg.channel_id, "Already joined #{channel.name}")
+        H.summon_but_already_joined(msg.channel_id, new_state)
         {:noreply, new_state}
 
       true ->
-        # Really join
-        D.join_voice_channel!(state.guild_id, voice_channel_id)
-        channel = D.channel!(voice_channel_id)
-        D.text_message(msg.channel_id, "Joined #{channel.name}")
+        H.summon(msg.channel_id, voice_channel_id, new_state)
         {:noreply, new_state}
     end
-  end
-
-  def handle_cast(:kick, state) do
-    # Leave the channel now
-    S.stop_speaking_and_clear_message_queue(state.speaker)
-    S.schedule_leave(state.speaker)
-    {:noreply, state}
   end
 
   def handle_cast({:leave, msg}, state) do
@@ -275,16 +240,21 @@ defmodule Daidoquer2.Guild do
         :ignore
 
       user_vc_id != my_vc_id ->
-        # User does not join the channel. Just ignore.
-        Logger.debug("'!ddq leave' from another channel")
-        D.text_message(msg.channel_id, "Call from the same VC channel")
+        H.unsummon_not_from_same_vc(msg.channel_id, state)
+        {:noreply, state}
 
       true ->
-        S.stop_speaking_and_clear_message_queue(state.speaker)
-        S.cast_bare_message(state.speaker, "。お相手はdaidoquer2でした。またね。")
-        S.schedule_leave(state.speaker)
+        H.unsummon(state)
+        {:noreply, state}
     end
 
+    {:noreply, state}
+  end
+
+  def handle_cast(:kick, state) do
+    # Leave the channel now
+    S.stop_speaking_and_clear_message_queue(state.speaker)
+    S.schedule_leave(state.speaker)
     {:noreply, state}
   end
 
