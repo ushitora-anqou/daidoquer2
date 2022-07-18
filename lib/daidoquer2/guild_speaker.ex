@@ -245,7 +245,7 @@ defmodule Daidoquer2.GuildSpeaker do
         _ -> ""
       end
 
-    if String.length(text) == 0 do
+    if text == "" do
       {:error, :speak_empty}
     else
       chara = select_chara_from_uid(uid)
