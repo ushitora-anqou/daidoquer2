@@ -65,7 +65,7 @@ defmodule Daidoquer2.MessageSanitizer do
   end
 
   defp replace_non_sjis_with_empty(text) do
-    text |> MbcsRs.encode!("SJIS") |> MbcsRs.decode!("SJIS")
+    text |> to_charlist |> Enum.filter(&Daidoquer2.CheckSjis.codepoint/1) |> to_string
   end
 
   defp omit_if_too_long(text) do

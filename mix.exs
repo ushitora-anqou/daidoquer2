@@ -1,3 +1,15 @@
+defmodule Mix.Tasks.Compile.CheckSjis do
+  def run(_args) do
+    {result, errcode} = System.cmd("make", [])
+
+    if errcode == 0 do
+      IO.binwrite(result)
+    else
+      {:error, [{:make_fail, result, errcode}]}
+    end
+  end
+end
+
 defmodule Daidoquer2.MixProject do
   use Mix.Project
 
@@ -12,7 +24,8 @@ defmodule Daidoquer2.MixProject do
         daidoquer2: [
           steps: [:assemble, :tar]
         ]
-      ]
+      ],
+      compilers: [:check_sjis] ++ Mix.compilers()
     ]
   end
 
@@ -32,7 +45,6 @@ defmodule Daidoquer2.MixProject do
       {:nostrum, "~> 0.6.0"},
       {:httpoison, "~> 1.8.0"},
       {:temp, "~> 0.4"},
-      {:mbcs_rs, "~> 0.1"},
       # {:emojix, "~> 0.3"},
       {:emojix, git: "https://github.com/ushitora-anqou/emojix.git"},
       {:google_api_text_to_speech, "~> 0.12.1"},
