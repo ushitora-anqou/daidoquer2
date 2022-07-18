@@ -55,4 +55,5 @@ config :daidoquer2,
     {:sushikicom, "?speaker=14"},
     {:sushikicom, "?speaker=16"},
     {:sushikicom, "?speaker=20"}
-  ]
+  ],
+  dummy_message: "ちくわ大明神。"

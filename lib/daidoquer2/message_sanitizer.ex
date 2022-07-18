@@ -2,7 +2,7 @@ defmodule Daidoquer2.MessageSanitizer do
   @message_length_limit 100
 
   def dummy do
-    Application.get_env(:daidoquer2, :dummy, "ちくわ大明神。")
+    Application.fetch_env!(:daidoquer2, :dummy_message)
   end
 
   def sanitize(text) do
