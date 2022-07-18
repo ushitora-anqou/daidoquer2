@@ -1,6 +1,4 @@
 defmodule Daidoquer2.MessageSanitizer do
-  @message_length_limit 100
-
   def dummy do
     Application.fetch_env!(:daidoquer2, :dummy_message)
   end
@@ -71,10 +69,12 @@ defmodule Daidoquer2.MessageSanitizer do
   end
 
   defp omit_if_too_long(text) do
-    if String.length(text) <= @message_length_limit do
+    limit = Application.fetch_env!(:daidoquer2, :message_length_limit)
+
+    if String.length(text) <= limit do
       text
     else
-      String.slice(text, 0, @message_length_limit) <> "。以下ちくわ大明神。"
+      String.slice(text, 0, limit) <> "。以下ちくわ大明神。"
     end
   end
 end
