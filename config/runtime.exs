@@ -28,17 +28,10 @@ config :nostrum,
 # config :goth, disabled: true
 
 config :daidoquer2,
-  prompt_regex: ~r/^!ddqa\s+(.+)$/,
-  ms_before_leave: 1 * 60 * 1000,
   default_post_url: "http://localhost:8399",
-  uid2chara:
-    %{
-      # uid1 => {:post, "http://localhost:8399"},
-      # uid2 => {:google, 0},
-      # uid3 => {:sushikicom, "?speaker=12"},
-      # uid4 => {:voicevox_engine, "http://localhost:50021", 0}
-    },
-  tmpfile_path: "/tmp/daidoquer2.tmpfile",
+  dummy_message: "ちくわ大明神。",
+  message_length_limit: 100,
+  ms_before_leave: 1 * 60 * 1000,
   preset_chara: [
     # {:google, 0},
     # {:google, 1},
@@ -56,5 +49,12 @@ config :daidoquer2,
     {:sushikicom, "?speaker=16"},
     {:sushikicom, "?speaker=20"}
   ],
-  dummy_message: "ちくわ大明神。",
-  message_length_limit: 100
+  prompt_regex: ~r/^!ddqa\s+(.+)$/,
+  tmpfile_path: "/tmp/daidoquer2.tmpfile",
+  uid2chara:
+    %{
+      # uid1 => {:post, "http://localhost:8399"},
+      # uid2 => {:google, 0},
+      # uid3 => {:sushikicom, "?speaker=12"},
+      # uid4 => {:voicevox_engine, "http://localhost:50021", 0}
+    }
