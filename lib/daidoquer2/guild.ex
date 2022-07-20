@@ -308,6 +308,9 @@ defmodule Daidoquer2.Guild do
 
   defp set_join_timer(guild_id, vc_id) do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
-    Daidoquer2.GuildTimer.set_timer(guild_id, {:join, vc_id}, ms)
+
+    if ms != 0 do
+      Daidoquer2.GuildTimer.set_timer(guild_id, {:join, vc_id}, ms)
+    end
   end
 end
