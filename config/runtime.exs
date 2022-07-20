@@ -28,7 +28,7 @@ config :nostrum,
 # config :goth, disabled: true
 
 config :daidoquer2,
-  default_post_url: "http://localhost:8399",
+  announcer: {:post, "http://localhost:8399"},
   dummy_message: "ちくわ大明神。",
   message_length_limit: 100,
   ms_before_join: 0,

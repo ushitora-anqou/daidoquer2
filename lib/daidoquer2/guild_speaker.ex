@@ -293,7 +293,7 @@ defmodule Daidoquer2.GuildSpeaker do
 
   defp select_chara_from_uid(uid) do
     if uid == nil do
-      {:post, Application.get_env(:daidoquer2, :default_post_url, "http://localhost:8399")}
+      Application.fetch_env!(:daidoquer2, :announcer)
     else
       uid2chara = Application.get_env(:daidoquer2, :uid2chara, %{})
       preset_chara = Application.get_env(:daidoquer2, :preset_chara, %{})
