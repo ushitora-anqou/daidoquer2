@@ -19,10 +19,6 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:join, msg})
   end
 
-  def kick_from_channel(pid) do
-    GenServer.cast(pid, :kick)
-  end
-
   def leave_channel(pid, msg) do
     GenServer.cast(pid, {:leave, msg})
   end
@@ -58,6 +54,10 @@ defmodule Daidoquer2.Guild do
     GenServer.call(pid, :num_users_in_channel)
   end
 
+  def cast_timeout(pid, key) do
+    GenServer.cast(pid, {:timeout, key})
+  end
+
   #####
   # GenServer callbacks
 
@@ -89,7 +89,7 @@ defmodule Daidoquer2.Guild do
         num_users = D.num_of_users_in_my_channel!(guild_id)
 
         if num_users == 0 do
-          Daidoquer2.GuildKiller.set_timer(guild_id)
+          set_leave_timer(guild_id)
         end
 
         {:noreply, %{state | num_users_in_channel: num_users}}
@@ -163,7 +163,7 @@ defmodule Daidoquer2.Guild do
             new_state
           else
             num_users_in_channel = new_state.num_users_in_channel + 1
-            Daidoquer2.GuildKiller.cancel_timer(new_state.guild_id)
+            cancel_leave_timer(new_state.guild_id)
             %{new_state | num_users_in_channel: num_users_in_channel}
           end
 
@@ -179,7 +179,7 @@ defmodule Daidoquer2.Guild do
             num_users_in_channel = new_state.num_users_in_channel - 1
 
             if num_users_in_channel == 0 do
-              Daidoquer2.GuildKiller.set_timer(new_state.guild_id)
+              set_leave_timer(new_state.guild_id)
             end
 
             %{new_state | num_users_in_channel: num_users_in_channel}
@@ -251,8 +251,9 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  def handle_cast(:kick, state) do
+  def handle_cast({:timeout, :leave}, state) do
     # Leave the channel now
+    Logger.debug("Leaving #{state.guild_id}")
     S.stop_speaking_and_clear_message_queue(state.speaker)
     S.schedule_leave(state.speaker)
     {:noreply, state}
@@ -284,4 +285,13 @@ defmodule Daidoquer2.Guild do
 
   #####
   # Internals
+
+  defp set_leave_timer(guild_id) do
+    ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
+    Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
+  end
+
+  defp cancel_leave_timer(guild_id) do
+    Daidoquer2.GuildTimer.cancel_timer(guild_id, :leave)
+  end
 end
