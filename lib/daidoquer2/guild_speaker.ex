@@ -189,7 +189,7 @@ defmodule Daidoquer2.GuildSpeaker do
   defp queue_msg(state, msg) do
     num_users = G.get_num_users_in_channel({:via, Registry, {Registry.Guild, state.guild_id}})
 
-    if num_users == 0 do
+    if msg != :leave and num_users == 0 do
       # No need to speak
       Logger.debug("GuildSpeaker: #{state.guild_id}: no need to speak: #{inspect(msg)}")
       state
