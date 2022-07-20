@@ -299,7 +299,10 @@ defmodule Daidoquer2.Guild do
 
   defp set_leave_timer(guild_id) do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
-    Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
+
+    if ms != 0 do
+      Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
+    end
   end
 
   defp cancel_leave_timer(guild_id) do
