@@ -23,7 +23,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
         G.cast_message(name, msg)
 
       [_, "join"] ->
-        Daidoquer2.GuildSupSup.add_guild(msg.guild_id)
+        ensure_guild(msg.guild_id)
         G.join_channel(name, msg)
 
       [_, "leave"] ->
@@ -45,6 +45,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
+    ensure_guild(state.guild_id)
     G.notify_voice_state_updated(guild_name(state.guild_id), state)
   end
 
@@ -63,5 +64,9 @@ defmodule Daidoquer2.DiscordEventConsumer do
 
   defp guild_name(guild_id) do
     {:via, Registry, {Registry.Guild, guild_id}}
+  end
+
+  defp ensure_guild(guild_id) do
+    Daidoquer2.GuildSupSup.add_guild(guild_id)
   end
 end

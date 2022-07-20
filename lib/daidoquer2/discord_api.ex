@@ -72,15 +72,18 @@ defmodule Daidoquer2.DiscordAPI do
     name
   end
 
-  def num_of_users_in_my_channel!(guild_id) do
-    my_channel = voice_channel_of_user!(guild_id, Me.get().id)
-
+  def num_of_users_in_channel!(guild_id, channel_id) do
     guild_id
     |> voice_states_of_guild!
     |> Enum.filter(fn v ->
-      v.channel_id == my_channel and user!(v.user_id).bot != true
+      v.channel_id == channel_id and user!(v.user_id).bot != true
     end)
     |> length
+  end
+
+  def num_of_users_in_my_channel!(guild_id) do
+    my_channel = voice_channel_of_user!(guild_id, Me.get().id)
+    num_of_users_in_channel!(guild_id, my_channel)
   end
 
   def join_voice_channel(guild_id, vchannel_id) do

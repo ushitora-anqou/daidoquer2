@@ -111,33 +111,25 @@ defmodule Daidoquer2.Guild do
   def handle_cast({:voice_state_updated, voice_state}, state) do
     true = voice_state.guild_id == state.guild_id
 
-    {joining, leaving, my_joining, my_leaving, start_streaming, stop_streaming} =
-      with p <- state.voice_states |> Map.get(voice_state.user_id),
-           c <- voice_state,
-           my_user_id <- D.me().id,
-           ch <- D.voice_channel_of_user!(state.guild_id, my_user_id) do
-        joining =
-          if p == nil do
-            ch != nil and c.channel_id == ch
-          else
-            ch != nil and p.channel_id != c.channel_id and c.channel_id == ch
-          end
+    p = state.voice_states |> Map.get(voice_state.user_id)
+    c = voice_state
+    my_user_id = D.me().id
+    ch = D.voice_channel_of_user!(state.guild_id, my_user_id)
 
-        leaving = p != nil and ch != nil and p.channel_id != c.channel_id and p.channel_id == ch
-        about_me = voice_state.user_id == my_user_id
-        my_joining = about_me and joining
-        my_leaving = about_me and (leaving or ch == nil)
+    joining_any_channel = c.channel_id != nil and (p == nil or p.channel_id != c.channel_id)
+    joining = joining_any_channel and c.channel_id == ch
+    leaving = p != nil and ch != nil and p.channel_id != c.channel_id and p.channel_id == ch
+    about_me = voice_state.user_id == my_user_id
+    my_joining = about_me and joining
+    my_leaving = about_me and (leaving or ch == nil)
 
-        start_streaming =
-          p != nil and (not Map.has_key?(p, :self_stream) or not p.self_stream) and
-            (Map.has_key?(c, :self_stream) and c.self_stream)
+    start_streaming =
+      p != nil and (not Map.has_key?(p, :self_stream) or not p.self_stream) and
+        (Map.has_key?(c, :self_stream) and c.self_stream)
 
-        stop_streaming =
-          p != nil and (Map.has_key?(p, :self_stream) and p.self_stream) and
-            (not Map.has_key?(c, :self_stream) or not c.self_stream)
-
-        {joining, leaving, my_joining, my_leaving, start_streaming, stop_streaming}
-      end
+    stop_streaming =
+      p != nil and (Map.has_key?(p, :self_stream) and p.self_stream) and
+        (not Map.has_key?(c, :self_stream) or not c.self_stream)
 
     new_state = %{
       state
@@ -193,6 +185,10 @@ defmodule Daidoquer2.Guild do
 
       stop_streaming ->
         H.stop_streaming(voice_state.user_id, new_state)
+        {:noreply, new_state}
+
+      joining_any_channel ->
+        set_join_timer(state.guild_id, c.channel_id)
         {:noreply, new_state}
 
       true ->
@@ -251,6 +247,21 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
+  def handle_cast({:timeout, {:join, vc_id}}, state) do
+    # Join the channel now, if:
+    # - I've not yet joined a channel and
+    # - Someone is still in the channel
+    not_yet_joined = D.voice_channel_of_user!(state.guild_id, D.me().id) == nil
+    someone_in = D.num_of_users_in_channel!(state.guild_id, vc_id) != 0
+
+    if not_yet_joined and someone_in do
+      Logger.debug("Joining #{state.guild_id}: #{vc_id}")
+      D.join_voice_channel!(state.guild_id, vc_id)
+    end
+
+    {:noreply, state}
+  end
+
   def handle_cast({:timeout, :leave}, state) do
     # Leave the channel now
     Logger.debug("Leaving #{state.guild_id}")
@@ -293,5 +304,10 @@ defmodule Daidoquer2.Guild do
 
   defp cancel_leave_timer(guild_id) do
     Daidoquer2.GuildTimer.cancel_timer(guild_id, :leave)
+  end
+
+  defp set_join_timer(guild_id, vc_id) do
+    ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
+    Daidoquer2.GuildTimer.set_timer(guild_id, {:join, vc_id}, ms)
   end
 end
