@@ -52,22 +52,21 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
     S.cast_bare_message(state.speaker, "#{name}さんがライブを終了しました。")
   end
 
-  def summon_not_from_vc(channel_id, state) do
+  def summon_not_from_vc(msg, _state) do
     # The user doesn't belong to VC
-    D.text_message(channel_id, "Call from VC")
+    text_message(msg, "Call from VC")
   end
 
-  def summon_but_already_joined(channel_id, state) do
+  def summon_but_already_joined(msg, _state) do
     # Already joined
-    channel = D.channel!(channel_id)
-    D.text_message(channel_id, "Already joined #{channel.name}")
+    text_message(msg, "Already joined")
   end
 
-  def summon(channel_id, vc_id, state) do
+  def summon(msg, vc_id, state) do
     # Really join
     D.join_voice_channel!(state.guild_id, vc_id)
     channel = D.channel!(vc_id)
-    D.text_message(channel_id, "Joined #{channel.name}")
+    text_message(msg, "Joined #{channel.name}")
   end
 
   def unsummon_not_from_same_vc(channel_id, state) do
@@ -80,5 +79,16 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
     S.stop_speaking_and_clear_message_queue(state.speaker)
     S.cast_bare_message(state.speaker, "。お相手はdaidoquer2でした。またね。")
     S.schedule_leave(state.speaker)
+  end
+
+  #####
+  # Internals
+
+  defp text_message({:message, msg}, text) do
+    D.text_message(msg.channel_id, text)
+  end
+
+  defp text_message({:interaction, intr}, text) do
+    D.text_message_to_interaction(intr, text)
   end
 end

@@ -16,7 +16,11 @@ defmodule Daidoquer2.Guild do
   end
 
   def join_channel(pid, msg) do
-    GenServer.cast(pid, {:join, msg})
+    GenServer.cast(pid, {:join, {:message, msg}})
+  end
+
+  def join_channel_via_interaction(pid, interaction) do
+    GenServer.cast(pid, {:join, {:interaction, interaction}})
   end
 
   def leave_channel(pid, msg) do
@@ -197,9 +201,14 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast({:join, msg}, state) do
-    true = msg.guild_id == state.guild_id
+    {guild_id, uid} =
+      case msg do
+        {:message, msg} -> {msg.guild_id, msg.author.id}
+        {:interaction, intr} -> {intr.guild_id, intr.user.id}
+      end
 
-    voice_channel_id = D.voice_channel_of_user!(state.guild_id, msg.author.id)
+    true = guild_id == state.guild_id
+    voice_channel_id = D.voice_channel_of_user!(state.guild_id, uid)
 
     new_state = %{
       state
@@ -212,15 +221,15 @@ defmodule Daidoquer2.Guild do
 
     cond do
       voice_channel_id == nil ->
-        H.summon_not_from_vc(msg.channel_id, new_state)
+        H.summon_not_from_vc(msg, new_state)
         {:noreply, new_state}
 
       voice_channel_id == D.voice_channel_of_user!(state.guild_id, D.me().id) ->
-        H.summon_but_already_joined(msg.channel_id, new_state)
+        H.summon_but_already_joined(msg, new_state)
         {:noreply, new_state}
 
       true ->
-        H.summon(msg.channel_id, voice_channel_id, new_state)
+        H.summon(msg, voice_channel_id, new_state)
         {:noreply, new_state}
     end
   end

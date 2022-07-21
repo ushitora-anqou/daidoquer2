@@ -18,6 +18,18 @@ defmodule Daidoquer2.DiscordAPI do
     Api.create_message(channel_id, message)
   end
 
+  def text_message_to_interaction(interaction, text) do
+    response = %{
+      # ChannelMessageWithSource
+      type: 4,
+      data: %{
+        content: text
+      }
+    }
+
+    Nostrum.Api.create_interaction_response(interaction, response)
+  end
+
   def channel(chan_id) do
     case ChannelCache.get(chan_id) do
       {:ok, chan} -> {:ok, chan}

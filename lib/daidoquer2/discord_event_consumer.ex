@@ -4,9 +4,24 @@ defmodule Daidoquer2.DiscordEventConsumer do
   require Logger
 
   alias Daidoquer2.Guild, as: G
+  alias Nostrum.Struct.Interaction
 
   def start_link do
     Consumer.start_link(__MODULE__)
+  end
+
+  def handle_event({:READY, _, _}) do
+    create_slash_command = Application.fetch_env!(:daidoquer2, :create_slash_command)
+
+    {:ok, _} =
+      create_slash_command.(%{
+        name: "join",
+        description: "join a VC"
+      })
+  end
+
+  def handle_event({:INTERACTION_CREATE, %Interaction{data: %{name: name}} = interaction, _}) do
+    handle_interaction(name, interaction)
   end
 
   def handle_event({:MESSAGE_CREATE, %{author: %{bot: true}} = _msg, _ws_state}) do
@@ -60,6 +75,11 @@ defmodule Daidoquer2.DiscordEventConsumer do
   def handle_event(_event) do
     # Logger.debug("DISCORD EVENT: #{inspect(event)}")
     :noop
+  end
+
+  defp handle_interaction("join", interaction) do
+    guild_id = interaction.guild_id
+    G.join_channel_via_interaction(guild_name(guild_id), interaction)
   end
 
   defp guild_name(guild_id) do

@@ -29,6 +29,10 @@ config :nostrum,
 
 config :daidoquer2,
   announcer: {:sushikicom, "?speaker=2"},
+  create_slash_command: fn c ->
+    guild_id = 000_000_000_000_000_000
+    Nostrum.Api.create_guild_application_command(guild_id, c)
+  end,
   dummy_message: "ちくわ大明神。",
   message_length_limit: 100,
   ms_before_join: 0,
