@@ -86,10 +86,12 @@ defmodule Daidoquer2.Guild do
 
     cond do
       !is_in_vc && !voice_connected ->
+        S.cast_disable(state.speaker)
         {:noreply, state}
 
       is_in_vc && voice_connected ->
         reset_leave_timer(guild_id)
+        S.cast_enable(state.speaker)
         {:noreply, state}
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
