@@ -248,7 +248,7 @@ defmodule Daidoquer2.GuildSpeaker do
     if text == "" do
       {:error, :speak_empty}
     else
-      chara = select_chara_from_uid(uid)
+      chara = select_chara_from_uid(guild_id, uid)
       do_start_speaking(guild_id, text, chara)
     end
   end
@@ -291,17 +291,29 @@ defmodule Daidoquer2.GuildSpeaker do
     end)
   end
 
-  defp select_chara_from_uid(uid) do
-    if uid == nil do
-      Application.fetch_env!(:daidoquer2, :announcer)
-    else
-      uid2chara = Application.get_env(:daidoquer2, :uid2chara, %{})
-      preset_chara = Application.get_env(:daidoquer2, :preset_chara, %{})
+  defp select_chara_from_uid(_, nil) do
+    Application.fetch_env!(:daidoquer2, :announcer)
+  end
 
-      case uid2chara |> Map.fetch(uid) do
-        {:ok, chara} -> chara
-        :error -> preset_chara |> Enum.fetch!(rem(uid, length(preset_chara)))
-      end
+  defp select_chara_from_uid(guild_id, uid) do
+    uid2chara = Application.get_env(:daidoquer2, :uid2chara, %{})
+    role2chara = Application.get_env(:daidoquer2, :role2chara, %{})
+
+    case Map.fetch(uid2chara, uid) do
+      {:ok, chara} ->
+        chara
+
+      :error ->
+        roles = D.roles_of_user!(guild_id, uid)
+
+        case Enum.find_value(roles, fn role -> Map.get(role2chara, role.name) end) do
+          nil ->
+            {_role, chara} = Enum.at(role2chara, rem(uid, map_size(role2chara)))
+            chara
+
+          chara ->
+            chara
+        end
     end
   end
 

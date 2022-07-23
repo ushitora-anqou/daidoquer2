@@ -84,6 +84,11 @@ defmodule Daidoquer2.DiscordAPI do
     name
   end
 
+  def roles_of_user!(guild_id, user_id) do
+    {:ok, member} = Api.get_guild_member(guild_id, user_id)
+    member.roles |> Enum.map(fn role_id -> guild!(guild_id).roles[role_id] end)
+  end
+
   def num_of_users_in_channel!(guild_id, channel_id) do
     guild_id
     |> voice_states_of_guild!
