@@ -54,10 +54,6 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:thread_create, channel})
   end
 
-  def get_num_users_in_channel(pid) do
-    GenServer.call(pid, :num_users_in_channel)
-  end
-
   def cast_timeout(pid, key) do
     GenServer.cast(pid, {:timeout, key})
   end
@@ -81,7 +77,6 @@ defmodule Daidoquer2.Guild do
     state = %{
       guild_id: guild_id,
       voice_states: %{},
-      num_users_in_channel: 0,
       speaker: {:via, Registry, {Registry.Speaker, guild_id}}
     }
 
@@ -90,13 +85,8 @@ defmodule Daidoquer2.Guild do
         {:noreply, state}
 
       is_in_vc && voice_connected ->
-        num_users = D.num_of_users_in_my_channel!(guild_id)
-
-        if num_users == 0 do
-          set_leave_timer(guild_id)
-        end
-
-        {:noreply, %{state | num_users_in_channel: num_users}}
+        reset_leave_timer(guild_id)
+        {:noreply, state}
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
         # Invalid state
@@ -144,8 +134,7 @@ defmodule Daidoquer2.Guild do
       my_joining ->
         H.i_join(new_state)
 
-        {:noreply,
-         %{new_state | num_users_in_channel: D.num_of_users_in_my_channel!(state.guild_id)}}
+        {:noreply, new_state}
 
       my_leaving ->
         H.i_leave(new_state)
@@ -153,34 +142,12 @@ defmodule Daidoquer2.Guild do
 
       joining ->
         H.someone_join(voice_state.user_id, new_state)
-
-        new_state =
-          if D.user!(voice_state.user_id).bot do
-            new_state
-          else
-            num_users_in_channel = new_state.num_users_in_channel + 1
-            cancel_leave_timer(new_state.guild_id)
-            %{new_state | num_users_in_channel: num_users_in_channel}
-          end
-
+        reset_leave_timer(new_state.guild_id)
         {:noreply, new_state}
 
       leaving ->
         H.someone_leave(voice_state.user_id, new_state)
-
-        new_state =
-          if D.user!(voice_state.user_id).bot do
-            new_state
-          else
-            num_users_in_channel = new_state.num_users_in_channel - 1
-
-            if num_users_in_channel == 0 do
-              set_leave_timer(new_state.guild_id)
-            end
-
-            %{new_state | num_users_in_channel: num_users_in_channel}
-          end
-
+        reset_leave_timer(new_state.guild_id)
         {:noreply, new_state}
 
       start_streaming ->
@@ -299,30 +266,28 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  def handle_call(:num_users_in_channel, _from, state) do
-    {:reply, state.num_users_in_channel, state}
-  end
-
   #####
   # Internals
-
-  defp set_leave_timer(guild_id) do
-    ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
-
-    if ms != 0 do
-      Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
-    end
-  end
-
-  defp cancel_leave_timer(guild_id) do
-    Daidoquer2.GuildTimer.cancel_timer(guild_id, :leave)
-  end
 
   defp set_join_timer(guild_id, vc_id) do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
 
     if ms != 0 do
       Daidoquer2.GuildTimer.set_timer(guild_id, {:join, vc_id}, ms)
+    end
+  end
+
+  defp reset_leave_timer(guild_id) do
+    case D.num_of_users_in_my_channel!(guild_id) do
+      0 ->
+        ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
+
+        if ms != 0 do
+          Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
+        end
+
+      _ ->
+        Daidoquer2.GuildTimer.cancel_timer(guild_id, :leave)
     end
   end
 end
