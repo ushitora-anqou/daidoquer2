@@ -43,7 +43,7 @@ defmodule Daidoquer2.GuildTimer do
       |> Map.get_and_update({guild_id, key}, fn
         ^ref ->
           Logger.debug("Timeout: #{guild_id}: #{inspect(key)}: #{inspect(ref)}")
-          Daidoquer2.Guild.cast_timeout({:via, Registry, {Registry.Guild, guild_id}}, key)
+          Daidoquer2.Guild.cast_timeout(Daidoquer2.Guild.name(guild_id), key)
           :pop
 
         current_ref ->

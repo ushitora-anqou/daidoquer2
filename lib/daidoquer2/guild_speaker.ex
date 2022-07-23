@@ -9,9 +9,12 @@ defmodule Daidoquer2.GuildSpeaker do
   #####
   # External API
 
+  def name(guild_id) do
+    {:via, Registry, {Registry.Speaker, guild_id}}
+  end
+
   def start_link(guild_id) do
-    name = {:via, Registry, {Registry.Speaker, guild_id}}
-    GenServer.start_link(__MODULE__, guild_id, name: name)
+    GenServer.start_link(__MODULE__, guild_id, name: name(guild_id))
   end
 
   def cast_discord_message(pid, msg) do

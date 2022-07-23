@@ -1,9 +1,12 @@
 defmodule Daidoquer2.GuildSup do
   use Supervisor
 
+  def name(guild_id) do
+    {:via, Registry, {Registry.GuildSup, guild_id}}
+  end
+
   def start_link(guild_id) do
-    name = {:via, Registry, {Registry.GuildSup, guild_id}}
-    Supervisor.start_link(__MODULE__, guild_id, name: name)
+    Supervisor.start_link(__MODULE__, guild_id, name: name(guild_id))
   end
 
   def child_spec(arg) do

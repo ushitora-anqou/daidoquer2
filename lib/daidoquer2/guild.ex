@@ -10,9 +10,12 @@ defmodule Daidoquer2.Guild do
   #####
   # External API
 
+  def name(guild_id) do
+    {:via, Registry, {Registry.Guild, guild_id}}
+  end
+
   def start_link(guild_id) do
-    name = {:via, Registry, {Registry.Guild, guild_id}}
-    GenServer.start_link(__MODULE__, guild_id, name: name)
+    GenServer.start_link(__MODULE__, guild_id, name: name(guild_id))
   end
 
   def join_channel(pid, msg) do
@@ -81,7 +84,7 @@ defmodule Daidoquer2.Guild do
     state = %{
       guild_id: guild_id,
       voice_states: %{},
-      speaker: {:via, Registry, {Registry.Speaker, guild_id}}
+      speaker: S.name(guild_id)
     }
 
     cond do
@@ -96,7 +99,7 @@ defmodule Daidoquer2.Guild do
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
         # Invalid state
-        Supervisor.stop({:via, Registry, {Registry.GuildSup, guild_id}})
+        Supervisor.stop(Daidoquer2.GuildSup.name(guild_id))
         {:stop, :normal, state}
     end
   end
