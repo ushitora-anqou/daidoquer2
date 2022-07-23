@@ -69,16 +69,17 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
     text_message(msg, "Joined #{channel.name}")
   end
 
-  def unsummon_not_from_same_vc(channel_id, state) do
+  def unsummon_not_from_same_vc(msg, _state) do
     # User does not join the channel
     Logger.debug("'!ddq leave' from another channel")
-    D.text_message(channel_id, "Call from the same VC channel")
+    text_message(msg, "Call from the same VC channel")
   end
 
-  def unsummon(state) do
+  def unsummon(msg, state) do
     S.stop_speaking_and_clear_message_queue(state.speaker)
     S.cast_bare_message(state.speaker, "。お相手はdaidoquer2でした。またね。")
     S.schedule_leave(state.speaker)
+    text_message(msg, "Leaving")
   end
 
   #####

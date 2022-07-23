@@ -24,7 +24,11 @@ defmodule Daidoquer2.Guild do
   end
 
   def leave_channel(pid, msg) do
-    GenServer.cast(pid, {:leave, msg})
+    GenServer.cast(pid, {:leave, {:message, msg}})
+  end
+
+  def leave_channel_via_interaction(pid, interaction) do
+    GenServer.cast(pid, {:leave, {:interaction, interaction}})
   end
 
   def cast_message(pid, msg) do
@@ -202,8 +206,15 @@ defmodule Daidoquer2.Guild do
   end
 
   def handle_cast({:leave, msg}, state) do
+    {guild_id, uid} =
+      case msg do
+        {:message, msg} -> {msg.guild_id, msg.author.id}
+        {:interaction, intr} -> {intr.guild_id, intr.user.id}
+      end
+
+    true = guild_id == state.guild_id
     voice_ready = D.voice_ready?(state.guild_id)
-    user_vc_id = D.voice_channel_of_user!(state.guild_id, msg.author.id)
+    user_vc_id = D.voice_channel_of_user!(state.guild_id, uid)
     my_vc_id = D.voice_channel_of_user!(state.guild_id, D.me().id)
 
     cond do
@@ -212,11 +223,11 @@ defmodule Daidoquer2.Guild do
         :ignore
 
       user_vc_id != my_vc_id ->
-        H.unsummon_not_from_same_vc(msg.channel_id, state)
+        H.unsummon_not_from_same_vc(msg, state)
         {:noreply, state}
 
       true ->
-        H.unsummon(state)
+        H.unsummon(msg, state)
         {:noreply, state}
     end
 

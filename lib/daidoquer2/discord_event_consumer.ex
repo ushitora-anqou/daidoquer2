@@ -18,6 +18,12 @@ defmodule Daidoquer2.DiscordEventConsumer do
         name: "join",
         description: "join a VC"
       })
+
+    {:ok, _} =
+      create_slash_command.(%{
+        name: "leave",
+        description: "leave the VC"
+      })
   end
 
   def handle_event({:INTERACTION_CREATE, %Interaction{data: %{name: name}} = interaction, _}) do
@@ -80,6 +86,11 @@ defmodule Daidoquer2.DiscordEventConsumer do
   defp handle_interaction("join", interaction) do
     guild_id = interaction.guild_id
     G.join_channel_via_interaction(guild_name(guild_id), interaction)
+  end
+
+  defp handle_interaction("leave", interaction) do
+    guild_id = interaction.guild_id
+    G.leave_channel_via_interaction(guild_name(guild_id), interaction)
   end
 
   defp guild_name(guild_id) do
