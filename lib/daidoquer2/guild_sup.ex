@@ -21,6 +21,6 @@ defmodule Daidoquer2.GuildSup do
       {Daidoquer2.Guild, guild_id}
     ]
 
-    Supervisor.init(children, strategy: :one_for_all)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end
