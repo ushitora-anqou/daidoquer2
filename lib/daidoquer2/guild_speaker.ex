@@ -401,11 +401,12 @@ defmodule Daidoquer2.GuildSpeaker do
         # because it does not work properly when audio data is short (about <2 seconds).
         # I belive that this is NOT a problem of :audio_frames_per_burst, which is
         # explicitly stated in the Nostrum document, but a problem of Port of Elixir.
-        # When the audio data is short, FFmpeg's output finishes before the buffer of Port
-        # becomes full. However, FFmpeg cannot exit (i.e., Port cannot know when FFmpeg
-        # finishes its output) when we use :pipe, so it causes timeout of
-        # Nostrum.Voice.Audio.try_send_data/3.
-        # To avoid this situation, I use :url here, because FFmpeg can exit by doing so.
+        # When we use :pipe, FFmpeg expects EOF to finish its output, but Elixir's
+        # (i.e., Erlang's) Port cannot send EOF unless it closes
+        # (c.f. https://github.com/erlang/otp/issues/4326).
+        # Therefore, it causes timeout of Nostrum.Voice.Audio.try_send_data/3.
+        # To avoid this situation, I use :url here.
+        # Note: erlexec https://github.com/saleyn/erlexec may be a solution.
         Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
         tmpfile_path = Application.fetch_env!(:daidoquer2, :tmpfile_path)
         File.write(tmpfile_path, speech, [:binary])
