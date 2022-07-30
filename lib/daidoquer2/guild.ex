@@ -233,11 +233,9 @@ defmodule Daidoquer2.Guild do
 
       user_vc_id != my_vc_id ->
         H.unsummon_not_from_same_vc(msg, state)
-        {:noreply, state}
 
       true ->
         H.unsummon(msg, state)
-        {:noreply, state}
     end
 
     {:noreply, state}
