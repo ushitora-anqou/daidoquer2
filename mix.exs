@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Compile.CheckSjis do
+defmodule Mix.Tasks.Compile.CSource do
   def run(_args) do
     {result, errcode} = System.cmd("make", [])
 
@@ -25,7 +25,7 @@ defmodule Daidoquer2.MixProject do
           steps: [:assemble, :tar]
         ]
       ],
-      compilers: [:check_sjis] ++ Mix.compilers()
+      compilers: [:c_source] ++ Mix.compilers()
     ]
   end
 
