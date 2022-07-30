@@ -27,6 +27,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:INTERACTION_CREATE, %Interaction{data: %{name: name}} = interaction, _}) do
+    ensure_guild(interaction.guild_id)
     handle_interaction(name, interaction)
   end
 
@@ -48,6 +49,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
         G.join_channel(name, msg)
 
       [_, "leave"] ->
+        ensure_guild(msg.guild_id)
         G.leave_channel(name, msg)
 
       # FIXME: We probably need "!ddq help"
