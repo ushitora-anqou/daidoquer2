@@ -3,6 +3,7 @@ defmodule Daidoquer2.GuildSpeaker do
 
   require Logger
 
+  alias Daidoquer2.Audio, as: A
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.Guild, as: G
 
@@ -397,20 +398,8 @@ defmodule Daidoquer2.GuildSpeaker do
 
     case speech_res do
       {:ok, speech} ->
-        # Here, we intentionally do not use the option :pipe for D.voice_play!,
-        # because it does not work properly when audio data is short (about <2 seconds).
-        # I belive that this is NOT a problem of :audio_frames_per_burst, which is
-        # explicitly stated in the Nostrum document, but a problem of Port of Elixir.
-        # When we use :pipe, FFmpeg expects EOF to finish its output, but Elixir's
-        # (i.e., Erlang's) Port cannot send EOF unless it closes
-        # (c.f. https://github.com/erlang/otp/issues/4326).
-        # Therefore, it causes timeout of Nostrum.Voice.Audio.try_send_data/3.
-        # To avoid this situation, I use :url here.
-        # Note: erlexec https://github.com/saleyn/erlexec may be a solution.
         Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
-        tmpfile_path = Application.fetch_env!(:daidoquer2, :tmpfile_path)
-        File.write(tmpfile_path, speech, [:binary])
-        D.voice_play!(guild_id, tmpfile_path, :url, realtime: false)
+        start_playing(guild_id, speech)
         :ok
 
       {:error, e} ->
@@ -441,6 +430,21 @@ defmodule Daidoquer2.GuildSpeaker do
       {:error, res} ->
         {:error, {:post, res}}
     end
+  end
+
+  defp start_playing(guild_id, src_data) do
+    A.cast_stop(A.name(guild_id))
+    A.start_link(guild_id, src_data)
+
+    stream =
+      Stream.unfold(nil, fn nil ->
+        case A.call_opus_data(A.name(guild_id)) do
+          nil -> nil
+          val -> {val, nil}
+        end
+      end)
+
+    D.voice_play!(guild_id, stream, :raw_s)
   end
 
   # defp try_make_voice_ready(guild_id) do

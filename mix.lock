@@ -9,6 +9,7 @@
   "ed25519": {:hex, :ed25519, "1.4.1", "479fb83c3e31987c9cad780e6aeb8f2015fb5a482618cdf2a825c9aff809afc4", [:mix], [], "hexpm", "0dacb84f3faa3d8148e81019ca35f9d8dcee13232c32c9db5c2fb8ff48c80ec7"},
   "emojix": {:git, "https://github.com/ushitora-anqou/emojix.git", "3ad84fd6ed0db4e0c5f0b193f8ffa4d6b387328e", []},
   "equivalex": {:hex, :equivalex, "1.0.3", "170d9a82ae066e0020dfe1cf7811381669565922eb3359f6c91d7e9a1124ff74", [:mix], [], "hexpm", "46fa311adb855117d36e461b9c0ad2598f72110ad17ad73d7533c78020e045fc"},
+  "erlexec": {:git, "https://github.com/saleyn/erlexec.git", "61801c5045c735882c48221dfd0cc0e89104d1b6", [ref: "61801c5045c735882c48221dfd0cc0e89104d1b6"]},
   "exmoji": {:hex, :exmoji, "0.3.0", "3d3fdfafc38136bf2e6c7802615323e4a93d680ccdd8479aefb5657fb19f3691", [:mix], [{:jason, "~> 1.2", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm", "048a4526e5f0314322ab9876a97506e9ab03a18cc84f1bc26828551738f259fa"},
   "gen_stage": {:hex, :gen_stage, "1.1.2", "b1656cd4ba431ed02c5656fe10cb5423820847113a07218da68eae5d6a260c23", [:mix], [], "hexpm", "9e39af23140f704e2b07a3e29d8f05fd21c2aaf4088ff43cb82be4b9e3148d02"},
   "google_api_text_to_speech": {:hex, :google_api_text_to_speech, "0.12.1", "09f202621268b23542149696683c68f2f4cd4f33856cfa3743b7183f3f3eb352", [:mix], [{:google_gax, "~> 0.4", [hex: :google_gax, repo: "hexpm", optional: false]}], "hexpm", "6cb359169bf07a1635aedd9d6332e2128ad05f76669d6eccdb930b8fa360ef22"},

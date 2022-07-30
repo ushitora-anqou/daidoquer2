@@ -12,6 +12,7 @@ defmodule Daidoquer2.Application do
       Daidoquer2.DiscordEventConsumer,
       Daidoquer2.GuildSupSup,
       Daidoquer2.GuildTimer,
+      {Registry, [keys: :unique, name: Registry.Audio]},
       {Registry, [keys: :unique, name: Registry.GuildSup]},
       {Registry, [keys: :unique, name: Registry.Guild]},
       {Registry, [keys: :unique, name: Registry.Speaker]}

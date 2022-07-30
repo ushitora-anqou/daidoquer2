@@ -48,7 +48,10 @@ defmodule Daidoquer2.MixProject do
       # {:emojix, "~> 0.3"},
       {:emojix, git: "https://github.com/ushitora-anqou/emojix.git"},
       {:google_api_text_to_speech, "~> 0.12.1"},
-      {:goth, "~> 1.2.0"}
+      {:goth, "~> 1.2.0"},
+      {:erlexec,
+       git: "https://github.com/saleyn/erlexec.git",
+       ref: "61801c5045c735882c48221dfd0cc0e89104d1b6"}
     ]
   end
 end
