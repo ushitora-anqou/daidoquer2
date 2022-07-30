@@ -69,6 +69,7 @@ config :daidoquer2,
   message_length_limit: 100,
   ms_before_join: 0,
   ms_before_leave: 5 * 1000,
+  ms_before_stop_low_voice: 1 * 1000,
   prompt_regex: ~r/^!ddqa\s+(.+)$/,
   role2chara: %{
     "四国めたん" => {:sushikicom, "?speaker=2"},

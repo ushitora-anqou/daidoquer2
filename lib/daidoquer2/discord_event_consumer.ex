@@ -74,6 +74,10 @@ defmodule Daidoquer2.DiscordEventConsumer do
     G.notify_voice_ready(G.name(state.guild_id), state)
   end
 
+  def handle_event({:VOICE_INCOMING_PACKET, _, state}) do
+    G.notify_voice_incoming(G.name(state.guild_id))
+  end
+
   def handle_event({:THREAD_CREATE, channel, _}) do
     G.thread_create(G.name(channel.guild_id), channel)
   end

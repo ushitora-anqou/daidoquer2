@@ -66,6 +66,10 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:timeout, key})
   end
 
+  def notify_voice_incoming(pid) do
+    GenServer.cast(pid, :voice_incoming)
+  end
+
   #####
   # GenServer callbacks
 
@@ -253,6 +257,7 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast(:voice_ready, state) do
     S.notify_voice_ready(state.speaker)
+    D.start_listen_async(state.guild_id)
     {:noreply, state}
   end
 
@@ -268,6 +273,11 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast(:speaking_ended, state) do
     S.notify_speaking_ended(state.speaker)
+    {:noreply, state}
+  end
+
+  def handle_cast(:voice_incoming, state) do
+    S.notify_voice_incoming(state.speaker)
     {:noreply, state}
   end
 
@@ -291,6 +301,12 @@ defmodule Daidoquer2.Guild do
     Logger.debug("Leaving #{state.guild_id}")
     S.stop_speaking_and_clear_message_queue(state.speaker)
     S.schedule_leave(state.speaker)
+    {:noreply, state}
+  end
+
+  defp handle_timeout(:stop_low_voice, state) do
+    Logger.debug("Stop low voice: #{state.guild_id}")
+    S.stop_low_voice(state.speaker)
     {:noreply, state}
   end
 

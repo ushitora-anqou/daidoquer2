@@ -6,6 +6,7 @@ defmodule Daidoquer2.GuildSpeaker do
   alias Daidoquer2.Audio, as: A
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.Guild, as: G
+  alias Daidoquer2.GuildTimer, as: T
 
   #####
   # External API
@@ -51,6 +52,14 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :disable)
   end
 
+  def notify_voice_incoming(pid) do
+    GenServer.cast(pid, :voice_incoming)
+  end
+
+  def stop_low_voice(pid) do
+    GenServer.cast(pid, :stop_low_voice)
+  end
+
   #####
   # GenServer callbacks
 
@@ -76,6 +85,33 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_cast(:disable, state) do
     disable(state)
+  end
+
+  def handle_cast(:voice_incoming, state) when state.audio_pid != nil do
+    ms = Application.fetch_env!(:daidoquer2, :ms_before_stop_low_voice)
+
+    if ms != 0 do
+      Logger.debug("Start low voice: #{state.guild_id}")
+      A.enable_low_voice(state.audio_pid)
+      T.set_timer(state.guild_id, :stop_low_voice, ms)
+    end
+
+    {:noreply, state}
+  end
+
+  def handle_cast(:voice_incoming, state) do
+    # Ignore
+    {:noreply, state}
+  end
+
+  def handle_cast(:stop_low_voice, state) when state.audio_pid != nil do
+    A.disable_low_voice(state.audio_pid)
+    {:noreply, state}
+  end
+
+  def handle_cast(:stop_low_voice, state) do
+    # Ignore
+    {:noreply, state}
   end
 
   def handle_cast(event, state) do
@@ -439,7 +475,6 @@ defmodule Daidoquer2.GuildSpeaker do
 
   defp start_playing(guild_id, src_data) do
     {:ok, pid} = A.start_link(src_data)
-    A.enable_low_voice(pid)
 
     stream =
       Stream.unfold(nil, fn nil ->
