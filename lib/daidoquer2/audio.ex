@@ -9,12 +9,8 @@ defmodule Daidoquer2.Audio do
   #####
   # External API
 
-  def name(guild_id) do
-    {:via, Registry, {Registry.Audio, guild_id}}
-  end
-
-  def start_link(guild_id, src_data) do
-    GenServer.start_link(__MODULE__, src_data, name: name(guild_id))
+  def start_link(src_data) do
+    GenServer.start_link(__MODULE__, src_data)
   end
 
   def cast_stop(pid) do

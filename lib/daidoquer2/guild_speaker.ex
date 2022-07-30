@@ -65,7 +65,8 @@ defmodule Daidoquer2.GuildSpeaker do
        guild_id: guild_id,
        msg_queue: :queue.new(),
        state: initial_state,
-       enabled: false
+       enabled: false,
+       audio_pid: nil
      }}
   end
 
@@ -138,13 +139,10 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_state(:ready, {:message, msg}, state) do
     # Start speaking the message
-    next_state =
-      case start_speaking(state.guild_id, msg) do
-        :ok -> :speaking
-        {:error, _error} -> :ready
-      end
-
-    {:noreply, %{state | state: next_state}}
+    case start_speaking(msg, state) do
+      {:ok, state} -> {:noreply, %{state | state: :speaking}}
+      {:error, _error} -> {:noreply, %{state | state: :ready}}
+    end
   end
 
   def handle_state(:ready, :flush, state) do
@@ -211,11 +209,11 @@ defmodule Daidoquer2.GuildSpeaker do
         leave_vc(state)
 
       {{:value, msg}, msg_queue} ->
-        next_state = %{state | state: :speaking, msg_queue: msg_queue}
+        state = %{state | state: :speaking, msg_queue: msg_queue}
 
-        case start_speaking(state.guild_id, msg) do
-          :ok -> {:noreply, next_state}
-          {:error, _error} -> consume_queue(next_state)
+        case start_speaking(msg, state) do
+          {:ok, state} -> {:noreply, state}
+          {:error, _error} -> consume_queue(state)
         end
     end
   end
@@ -233,7 +231,10 @@ defmodule Daidoquer2.GuildSpeaker do
   #####
   # Internals
 
-  defp start_speaking(guild_id, msg) do
+  defp start_speaking(msg, state) do
+    A.cast_stop(state.audio_pid)
+    guild_id = state.guild_id
+
     {text, uid} =
       case msg do
         {:discord_message, msg} -> format_discord_message(guild_id, msg)
@@ -253,7 +254,11 @@ defmodule Daidoquer2.GuildSpeaker do
       {:error, :speak_empty}
     else
       chara = select_chara_from_uid(guild_id, uid)
-      do_start_speaking(guild_id, text, chara)
+
+      case do_start_speaking(guild_id, text, chara) do
+        {:ok, audio_pid} -> {:ok, %{state | audio_pid: audio_pid}}
+        error -> error
+      end
     end
   end
 
@@ -399,8 +404,8 @@ defmodule Daidoquer2.GuildSpeaker do
     case speech_res do
       {:ok, speech} ->
         Logger.debug("Speaking (#{guild_id},#{inspect(chara)}): #{text}")
-        start_playing(guild_id, speech)
-        :ok
+        audio_pid = start_playing(guild_id, speech)
+        {:ok, audio_pid}
 
       {:error, e} ->
         Logger.error(
@@ -433,19 +438,19 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   defp start_playing(guild_id, src_data) do
-    A.cast_stop(A.name(guild_id))
-    A.start_link(guild_id, src_data)
-    A.enable_low_voice(A.name(guild_id))
+    {:ok, pid} = A.start_link(src_data)
+    A.enable_low_voice(pid)
 
     stream =
       Stream.unfold(nil, fn nil ->
-        case A.call_opus_data(A.name(guild_id)) do
+        case A.call_opus_data(pid) do
           nil -> nil
           val -> {val, nil}
         end
       end)
 
     D.voice_play!(guild_id, stream, :raw_s)
+    pid
   end
 
   # defp try_make_voice_ready(guild_id) do
