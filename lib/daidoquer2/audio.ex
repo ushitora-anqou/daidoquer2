@@ -76,21 +76,17 @@ defmodule Daidoquer2.Audio do
   end
 
   def handle_info({:stdout, os_pid1, wav_data}, state) when os_pid1 == state.os_pid1 do
-    Logger.debug("Data arrived (1)")
     {filtered_data, state} = filter(wav_data, state)
     :ok = :exec.send(state.pid2, filtered_data)
     {:noreply, state}
   end
 
   def handle_info({:DOWN, os_pid1, :process, _, :normal}, state) when os_pid1 == state.os_pid1 do
-    Logger.debug("Encoding finished (1)")
     :ok = :exec.send(state.pid2, :eof)
     {:noreply, state}
   end
 
   def handle_info({:stdout, os_pid2, opus_data}, state) when os_pid2 == state.os_pid2 do
-    Logger.debug("Data arrived (2)")
-
     if state.awaiter == nil do
       {:noreply, %{state | q: :queue.in(opus_data, state.q)}}
     else
@@ -100,8 +96,6 @@ defmodule Daidoquer2.Audio do
   end
 
   def handle_info({:DOWN, os_pid2, :process, _, :normal}, state) when os_pid2 == state.os_pid2 do
-    Logger.debug("Encoding finished (2)")
-
     if state.awaiter != nil do
       true = :queue.is_empty(state.q)
       cast_stop(self())
