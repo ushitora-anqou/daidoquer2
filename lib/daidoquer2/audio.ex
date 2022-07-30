@@ -33,6 +33,8 @@ defmodule Daidoquer2.Audio do
   # GenServer callbacks
 
   def init(src_data) do
+    Logger.debug("Initialize Audio")
+
     ffmpeg_path = Application.fetch_env!(:daidoquer2, :ffmpeg_path)
     ffmpeg_options1 = Application.fetch_env!(:daidoquer2, :ffmpeg_options1) |> List.flatten()
     ffmpeg_options2 = Application.fetch_env!(:daidoquer2, :ffmpeg_options2) |> List.flatten()
