@@ -69,6 +69,10 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
     text_message(msg, "Joined #{channel.name}")
   end
 
+  def unsummon_not_joined(msg, _state) do
+    text_message(msg, "Not yet joined a VC channel")
+  end
+
   def unsummon_not_from_same_vc(msg, _state) do
     # User does not join the channel
     Logger.debug("'!ddq leave' from another channel")

@@ -229,8 +229,7 @@ defmodule Daidoquer2.Guild do
 
     cond do
       not voice_ready ->
-        # Not joined. Just ignore.
-        :ignore
+        H.unsummon_not_joined(msg, state)
 
       user_vc_id != my_vc_id ->
         H.unsummon_not_from_same_vc(msg, state)
