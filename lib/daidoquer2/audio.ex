@@ -137,20 +137,11 @@ defmodule Daidoquer2.Audio do
     wav_data = state.rest_wav <> wav_data
 
     if state.low_voice do
-      {rest, filtered_data} = do_filter(wav_data, [])
-      {filtered_data, %{state | rest_wav: rest}}
+      scale = Application.fetch_env!(:daidoquer2, :low_voice_scale)
+      {:ok, filtered, rest} = Daidoquer2.VolumeFilter.filter(wav_data, scale)
+      {filtered, %{state | rest_wav: rest}}
     else
       {wav_data, %{state | rest_wav: <<>>}}
     end
-  end
-
-  defp do_filter(<<head::little-signed-integer-size(16), tail::binary>>, res) do
-    scale = Application.fetch_env!(:daidoquer2, :low_voice_scale)
-    filtered = <<round(head * scale)::little-signed-integer-size(16)>>
-    do_filter(tail, [filtered | res])
-  end
-
-  defp do_filter(rest, res) do
-    {rest, res |> Enum.reverse() |> :erlang.iolist_to_binary()}
   end
 end
