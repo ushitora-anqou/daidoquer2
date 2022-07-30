@@ -65,6 +65,7 @@ config :daidoquer2,
     # ["-loglevel","quiet"],
     "pipe:1"
   ],
+  low_voice_scale: 0.4,
   message_length_limit: 100,
   ms_before_join: 0,
   ms_before_leave: 5 * 1000,

@@ -21,6 +21,14 @@ defmodule Daidoquer2.Audio do
     GenServer.cast(pid, :stop)
   end
 
+  def enable_low_voice(pid) do
+    GenServer.cast(pid, {:low_voice, true})
+  end
+
+  def disable_low_voice(pid) do
+    GenServer.cast(pid, {:low_voice, false})
+  end
+
   def call_opus_data(pid) do
     GenServer.call(pid, :opus_data)
   end
@@ -51,7 +59,9 @@ defmodule Daidoquer2.Audio do
        os_pid2: os_pid2,
        q: :queue.new(),
        awaiter: nil,
-       finished: false
+       finished: false,
+       rest_wav: <<>>,
+       low_voice: false
      }}
   end
 
@@ -65,9 +75,13 @@ defmodule Daidoquer2.Audio do
     {:stop, :normal, state}
   end
 
+  def handle_cast({:low_voice, enabled}, state) do
+    {:noreply, %{state | low_voice: enabled}}
+  end
+
   def handle_info({:stdout, os_pid1, wav_data}, state) when os_pid1 == state.os_pid1 do
     Logger.debug("Data arrived (1)")
-    filtered_data = filter(wav_data)
+    {filtered_data, state} = filter(wav_data, state)
     :ok = :exec.send(state.pid2, filtered_data)
     {:noreply, state}
   end
@@ -127,8 +141,24 @@ defmodule Daidoquer2.Audio do
     :ok = :exec.send(pid, :eof)
   end
 
-  defp filter(wav_data) do
-    # FIXME
-    wav_data
+  defp filter(wav_data, state) do
+    wav_data = state.rest_wav <> wav_data
+
+    if state.low_voice do
+      {rest, filtered_data} = do_filter(wav_data, [])
+      {filtered_data, %{state | rest_wav: rest}}
+    else
+      {wav_data, %{state | rest_wav: <<>>}}
+    end
+  end
+
+  defp do_filter(<<head::little-signed-integer-size(16), tail::binary>>, res) do
+    scale = Application.fetch_env!(:daidoquer2, :low_voice_scale)
+    filtered = <<round(head * scale)::little-signed-integer-size(16)>>
+    do_filter(tail, [filtered | res])
+  end
+
+  defp do_filter(rest, res) do
+    {rest, res |> Enum.reverse() |> :erlang.iolist_to_binary()}
   end
 end

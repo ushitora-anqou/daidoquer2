@@ -435,6 +435,7 @@ defmodule Daidoquer2.GuildSpeaker do
   defp start_playing(guild_id, src_data) do
     A.cast_stop(A.name(guild_id))
     A.start_link(guild_id, src_data)
+    A.enable_low_voice(A.name(guild_id))
 
     stream =
       Stream.unfold(nil, fn nil ->
