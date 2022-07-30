@@ -4,8 +4,9 @@ defmodule Daidoquer2.Guild do
   require Logger
 
   alias Daidoquer2.DiscordAPI, as: D
-  alias Daidoquer2.GuildSpeaker, as: S
   alias Daidoquer2.GuildDiscordEventHandler, as: H
+  alias Daidoquer2.GuildSpeaker, as: S
+  alias Daidoquer2.GuildTimer, as: T
 
   #####
   # External API
@@ -239,27 +240,15 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  def handle_cast({:timeout, {:join, vc_id}}, state) do
-    # Join the channel now, if:
-    # - I've not yet joined a channel and
-    # - Someone is still in the channel
-    not_yet_joined = D.voice_channel_of_user!(state.guild_id, D.me().id) == nil
-    someone_in = D.num_of_users_in_channel!(state.guild_id, vc_id) != 0
+  def handle_cast({:timeout, {key, timer_ref}}, state) do
+    case T.check_timeout(timer_ref) do
+      false ->
+        # Ignore fake timeout
+        {:noreply, state}
 
-    if not_yet_joined and someone_in do
-      Logger.debug("Joining #{state.guild_id}: #{vc_id}")
-      D.join_voice_channel!(state.guild_id, vc_id)
+      true ->
+        handle_timeout(key, state)
     end
-
-    {:noreply, state}
-  end
-
-  def handle_cast({:timeout, :leave}, state) do
-    # Leave the channel now
-    Logger.debug("Leaving #{state.guild_id}")
-    S.stop_speaking_and_clear_message_queue(state.speaker)
-    S.schedule_leave(state.speaker)
-    {:noreply, state}
   end
 
   def handle_cast(:voice_ready, state) do
@@ -282,6 +271,29 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
+  defp handle_timeout({:join, vc_id}, state) do
+    # Join the channel now, if:
+    # - I've not yet joined a channel and
+    # - Someone is still in the channel
+    not_yet_joined = D.voice_channel_of_user!(state.guild_id, D.me().id) == nil
+    someone_in = D.num_of_users_in_channel!(state.guild_id, vc_id) != 0
+
+    if not_yet_joined and someone_in do
+      Logger.debug("Joining #{state.guild_id}: #{vc_id}")
+      D.join_voice_channel!(state.guild_id, vc_id)
+    end
+
+    {:noreply, state}
+  end
+
+  defp handle_timeout(:leave, state) do
+    # Leave the channel now
+    Logger.debug("Leaving #{state.guild_id}")
+    S.stop_speaking_and_clear_message_queue(state.speaker)
+    S.schedule_leave(state.speaker)
+    {:noreply, state}
+  end
+
   #####
   # Internals
 
@@ -289,7 +301,7 @@ defmodule Daidoquer2.Guild do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
 
     if ms != 0 do
-      Daidoquer2.GuildTimer.set_timer(guild_id, {:join, vc_id}, ms)
+      T.set_timer(guild_id, {:join, vc_id}, ms)
     end
   end
 
@@ -299,11 +311,11 @@ defmodule Daidoquer2.Guild do
         ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
 
         if ms != 0 do
-          Daidoquer2.GuildTimer.set_timer(guild_id, :leave, ms)
+          T.set_timer(guild_id, :leave, ms)
         end
 
       _ ->
-        Daidoquer2.GuildTimer.cancel_timer(guild_id, :leave)
+        T.cancel_timer(guild_id, :leave)
     end
   end
 end
