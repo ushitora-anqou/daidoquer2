@@ -8,6 +8,8 @@ defmodule Daidoquer2.GuildSpeaker do
   alias Daidoquer2.Guild, as: G
   alias Daidoquer2.GuildTimer, as: T
 
+  @trigger_voice_incoming_cnt 25
+
   #####
   # External API
 
@@ -75,7 +77,8 @@ defmodule Daidoquer2.GuildSpeaker do
        msg_queue: :queue.new(),
        state: initial_state,
        enabled: false,
-       audio_pid: nil
+       audio_pid: nil,
+       voice_incoming_cnt: 0
      }}
   end
 
@@ -90,13 +93,19 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_cast(:voice_incoming, state) when state.audio_pid != nil do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_stop_low_voice)
 
-    if ms != 0 do
-      Logger.debug("Start low voice: #{state.guild_id}")
-      A.enable_low_voice(state.audio_pid)
-      T.set_timer(state.guild_id, :stop_low_voice, ms)
-    end
+    cond do
+      ms == 0 ->
+        {:noreply, state}
 
-    {:noreply, state}
+      state.voice_incoming_cnt < @trigger_voice_incoming_cnt ->
+        {:noreply, %{state | voice_incoming_cnt: state.voice_incoming_cnt + 1}}
+
+      true ->
+        Logger.debug("Start low voice: #{state.guild_id}")
+        A.enable_low_voice(state.audio_pid)
+        T.set_timer(state.guild_id, :stop_low_voice, ms)
+        {:noreply, %{state | voice_incoming_cnt: 0}}
+    end
   end
 
   def handle_cast(:voice_incoming, state) do
