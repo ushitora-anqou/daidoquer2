@@ -12,8 +12,8 @@ defmodule Daidoquer2.GuildTimer do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  def set_timer(guild_id, key, time) do
-    GenServer.cast(__MODULE__, {:set_timer, guild_id, key, time})
+  def set_timer(guild_id, key, time, module, funname) do
+    GenServer.cast(__MODULE__, {:set_timer, guild_id, key, time, module, funname})
   end
 
   def cancel_timer(guild_id, key) do
@@ -31,9 +31,9 @@ defmodule Daidoquer2.GuildTimer do
     {:ok, %{}}
   end
 
-  def handle_cast({:set_timer, guild_id, key, time}, state) do
+  def handle_cast({:set_timer, guild_id, key, time, module, funname}, state) do
     ref = make_ref()
-    Process.send_after(self(), {:timeout, ref, guild_id, key}, time)
+    Process.send_after(self(), {:timeout, ref, guild_id, key, module, funname}, time)
     Logger.debug("Setting timer: #{guild_id}: #{inspect(key)}: #{inspect(ref)}")
     {:noreply, Map.put(state, {guild_id, key}, ref)}
   end
@@ -55,11 +55,11 @@ defmodule Daidoquer2.GuildTimer do
     end
   end
 
-  def handle_info({:timeout, ref, guild_id, key}, state) do
+  def handle_info({:timeout, ref, guild_id, key, module, funname}, state) do
     case Map.fetch(state, {guild_id, key}) do
       {:ok, _} ->
         Logger.debug("Timeout: #{guild_id}: #{inspect(key)}: #{inspect(ref)}")
-        G.cast_timeout(G.name(guild_id), {key, {guild_id, key, ref}})
+        apply(module, funname, [key, guild_id, {guild_id, key, ref}])
 
       :error ->
         Logger.debug("Cancelled timeout: #{guild_id}: #{inspect(key)}: #{inspect(ref)}")

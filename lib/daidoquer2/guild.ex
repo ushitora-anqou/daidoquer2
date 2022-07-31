@@ -62,12 +62,12 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:thread_create, channel})
   end
 
-  def cast_timeout(pid, key) do
-    GenServer.cast(pid, {:timeout, key})
-  end
-
   def notify_voice_incoming(pid) do
     GenServer.cast(pid, :voice_incoming)
+  end
+
+  def callback_timeout(key, guild_id, timer_ref) do
+    GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
   end
 
   #####
@@ -241,7 +241,7 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  def handle_cast({:timeout, {key, timer_ref}}, state) do
+  def handle_cast({:timeout, key, timer_ref}, state) do
     case T.check_timeout(timer_ref) do
       false ->
         # Ignore fake timeout
@@ -301,12 +301,6 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  defp handle_timeout(:stop_low_voice, state) do
-    Logger.debug("Stop low voice: #{state.guild_id}")
-    S.stop_low_voice(state.speaker)
-    {:noreply, state}
-  end
-
   #####
   # Internals
 
@@ -314,7 +308,7 @@ defmodule Daidoquer2.Guild do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
 
     if ms != 0 do
-      T.set_timer(guild_id, {:join, vc_id}, ms)
+      T.set_timer(guild_id, {:join, vc_id}, ms, __MODULE__, :callback_timeout)
     end
   end
 
@@ -324,7 +318,7 @@ defmodule Daidoquer2.Guild do
         ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
 
         if ms != 0 do
-          T.set_timer(guild_id, :leave, ms)
+          T.set_timer(guild_id, :leave, ms, __MODULE__, :callback_timeout)
         end
 
       _ ->

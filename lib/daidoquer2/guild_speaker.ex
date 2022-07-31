@@ -58,8 +58,8 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :voice_incoming)
   end
 
-  def stop_low_voice(pid) do
-    GenServer.cast(pid, :stop_low_voice)
+  def callback_timeout(key, guild_id, timer_ref) do
+    GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
   end
 
   #####
@@ -103,7 +103,7 @@ defmodule Daidoquer2.GuildSpeaker do
       true ->
         Logger.debug("Start low voice: #{state.guild_id}")
         A.enable_low_voice(state.audio_pid)
-        T.set_timer(state.guild_id, :stop_low_voice, ms)
+        T.set_timer(state.guild_id, :stop_low_voice, ms, __MODULE__, :callback_timeout)
         {:noreply, %{state | voice_incoming_cnt: 0}}
     end
   end
@@ -113,14 +113,15 @@ defmodule Daidoquer2.GuildSpeaker do
     {:noreply, state}
   end
 
-  def handle_cast(:stop_low_voice, state) when state.audio_pid != nil do
-    A.disable_low_voice(state.audio_pid)
-    {:noreply, state}
-  end
+  def handle_cast({:timeout, key, timer_ref}, state) do
+    case T.check_timeout(timer_ref) do
+      false ->
+        # Ignore fake timeout
+        {:noreply, state}
 
-  def handle_cast(:stop_low_voice, state) do
-    # Ignore
-    {:noreply, state}
+      true ->
+        handle_timeout(key, state)
+    end
   end
 
   def handle_cast(event, state) do
@@ -142,6 +143,19 @@ defmodule Daidoquer2.GuildSpeaker do
       Logger.debug("GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: disabled")
       {:noreply, state}
     end
+  end
+
+  #####
+  # Timeout
+
+  def handle_timeout(:stop_low_voice, state) when state.audio_pid != nil do
+    A.disable_low_voice(state.audio_pid)
+    {:noreply, state}
+  end
+
+  def handle_timeout(:stop_low_voice, state) do
+    # Ignore
+    {:noreply, state}
   end
 
   #####
