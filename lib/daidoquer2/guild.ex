@@ -35,18 +35,6 @@ defmodule Daidoquer2.Guild do
     GenServer.cast(pid, {:leave, {:interaction, interaction}})
   end
 
-  def cast_message(pid, msg) do
-    GenServer.cast(pid, {:discord_message, msg})
-  end
-
-  def cast_bare_message(pid, text) do
-    GenServer.cast(pid, {:bare_message, text})
-  end
-
-  def notify_speaking_ended(pid) do
-    GenServer.cast(pid, :speaking_ended)
-  end
-
   def notify_voice_state_updated(pid, voice_state) do
     Logger.debug("VOICE_STATE_UPDATE: #{inspect(voice_state)}")
     GenServer.cast(pid, {:voice_state_updated, voice_state})
@@ -60,10 +48,6 @@ defmodule Daidoquer2.Guild do
   def thread_create(pid, channel) do
     Logger.debug("THREAD_CREATE: #{inspect(channel)}")
     GenServer.cast(pid, {:thread_create, channel})
-  end
-
-  def notify_voice_incoming(pid) do
-    GenServer.cast(pid, :voice_incoming)
   end
 
   def callback_timeout(key, guild_id, timer_ref) do
@@ -255,26 +239,6 @@ defmodule Daidoquer2.Guild do
   def handle_cast(:voice_ready, state) do
     S.notify_voice_ready(state.speaker)
     D.start_listen_async(state.guild_id)
-    {:noreply, state}
-  end
-
-  def handle_cast({:discord_message, msg}, state) do
-    S.cast_discord_message(state.speaker, msg)
-    {:noreply, state}
-  end
-
-  def handle_cast({:bare_message, text}, state) do
-    S.cast_bare_message(state.speaker, text)
-    {:noreply, state}
-  end
-
-  def handle_cast(:speaking_ended, state) do
-    S.notify_speaking_ended(state.speaker)
-    {:noreply, state}
-  end
-
-  def handle_cast(:voice_incoming, state) do
-    S.notify_voice_incoming(state.speaker)
     {:noreply, state}
   end
 

@@ -4,6 +4,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
   require Logger
 
   alias Daidoquer2.Guild, as: G
+  alias Daidoquer2.GuildSpeaker, as: S
   alias Nostrum.Struct.Interaction
 
   def start_link do
@@ -37,20 +38,19 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:MESSAGE_CREATE, msg, _ws_state}) do
-    name = G.name(msg.guild_id)
     prompt_regex = Application.fetch_env!(:daidoquer2, :prompt_regex)
 
     case Regex.run(prompt_regex, msg.content) do
       nil ->
-        G.cast_message(name, msg)
+        S.cast_discord_message(S.name(msg.guild_id), msg)
 
       [_, "join"] ->
         ensure_guild(msg.guild_id)
-        G.join_channel(name, msg)
+        G.join_channel(G.name(msg.guild_id), msg)
 
       [_, "leave"] ->
         ensure_guild(msg.guild_id)
-        G.leave_channel(name, msg)
+        G.leave_channel(G.name(msg.guild_id), msg)
 
       # FIXME: We probably need "!ddq help"
 
@@ -64,7 +64,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
         {:VOICE_SPEAKING_UPDATE,
          %Nostrum.Struct.Event.SpeakingUpdate{guild_id: guild_id, speaking: false}, _}
       ) do
-    G.notify_speaking_ended(G.name(guild_id))
+    S.notify_speaking_ended(S.name(guild_id))
   end
 
   def handle_event({:VOICE_STATE_UPDATE, state, _}) do
@@ -77,7 +77,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
   end
 
   def handle_event({:VOICE_INCOMING_PACKET, _, state}) do
-    G.notify_voice_incoming(G.name(state.guild_id))
+    S.notify_voice_incoming(S.name(state.guild_id))
   end
 
   def handle_event({:THREAD_CREATE, channel, _}) do
