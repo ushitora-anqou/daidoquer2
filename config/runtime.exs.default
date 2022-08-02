@@ -82,6 +82,23 @@ config :daidoquer2,
     "九州そら" => {:sushikicom, "?speaker=16"},
     "モチノ・キョウコ" => {:sushikicom, "?speaker=20"}
   },
+  template_text_message: %{
+    summon: fn m -> "#{m.channel_name}に参加します。" end,
+    summon_but_already_joined: fn _ -> "すでにボイスチャネルに参加しています。" end,
+    summon_not_from_vc: fn _ -> "ボイスチャネルに入ってから呼んでください。" end,
+    unsummon: fn _ -> "ボイスチャネルを離れます。" end,
+    unsummon_not_from_same_vc: fn _ -> "同じボイスチャネルから呼んでください。" end,
+    unsummon_not_joined: fn _ -> "まだボイスチャネルに入っていません。" end
+  },
+  template_voice_message: %{
+    i_joined: fn _ -> "こんにちは、daidoquer2です。やさしくしてね。" end,
+    im_leaving: fn _ -> "。お相手はdaidoquer2でした。またね。" end,
+    joined: fn m -> "#{m.name}さんが参加しました。" end,
+    left: fn m -> "#{m.name}さんが離れました。" end,
+    started_live: fn m -> "#{m.name}さんがライブを始めました。" end,
+    stopped_live: fn m -> "#{m.name}さんがライブを終了しました。" end,
+    created_thread: fn m -> "#{m.user_name}さんがスレッド「#{m.thread_name}」を作りました。" end
+  },
   uid2chara:
     %{
       # uid1 => {:post, "http://localhost:8399"},
