@@ -68,8 +68,9 @@ defmodule Daidoquer2.GuildSpeaker do
   def init(guild_id) do
     voice_ready = D.voice_ready?(guild_id)
     initial_state = if voice_ready, do: :ready, else: :not_ready
-
     Logger.debug("GuildSpeaker: #{guild_id}: init: initial_state: #{inspect(initial_state)}")
+
+    D.stop_listen_async(guild_id)
 
     {:ok,
      %{
@@ -199,8 +200,12 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_state(:ready, {:message, msg}, state) do
     # Start speaking the message
     case start_speaking(msg, state) do
-      {:ok, state} -> {:noreply, %{state | state: :speaking}}
-      {:error, _error} -> {:noreply, %{state | state: :ready}}
+      {:ok, state} ->
+        D.start_listen_async(state.guild_id)
+        {:noreply, %{state | state: :speaking}}
+
+      {:error, _error} ->
+        {:noreply, %{state | state: :ready}}
     end
   end
 
@@ -230,7 +235,14 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_state(:speaking, :speaking_ended, state) do
-    consume_queue(state)
+    case consume_queue(state) do
+      {_, %{state: :ready} = state} ->
+        D.stop_listen_async(state.guild_id)
+        {:noreply, state}
+
+      res ->
+        res
+    end
   end
 
   def handle_state(:speaking, :flush, state) do

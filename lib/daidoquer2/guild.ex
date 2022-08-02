@@ -238,7 +238,6 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast(:voice_ready, state) do
     S.notify_voice_ready(state.speaker)
-    D.start_listen_async(state.guild_id)
     {:noreply, state}
   end
 

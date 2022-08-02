@@ -134,4 +134,8 @@ defmodule Daidoquer2.DiscordAPI do
   def start_listen_async(guild_id) do
     Voice.start_listen_async(guild_id)
   end
+
+  def stop_listen_async(guild_id) do
+    Voice.stop_listen_async(guild_id)
+  end
 end
