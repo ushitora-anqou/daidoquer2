@@ -159,6 +159,19 @@ defmodule Daidoquer2.GuildSpeaker do
     {:noreply, state}
   end
 
+  def handle_timeout(:check_speaking, state) do
+    :speaking = state.state
+
+    case D.voice_playing?(state.guild_id) do
+      true ->
+        set_check_speaking_timer(state.guild_id)
+        {:noreply, state}
+
+      false ->
+        {:stop, :too_long_speaking_state}
+    end
+  end
+
   #####
   ## STATE = :not_ready
   #####
@@ -175,7 +188,15 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_state(:not_ready, :voice_ready, state) do
-    consume_queue(state)
+    case consume_queue(state) do
+      {_, %{state: next} = state} when next == :speaking ->
+        D.start_listen_async(state.guild_id)
+        set_check_speaking_timer(state.guild_id)
+        {:noreply, state}
+
+      res ->
+        res
+    end
   end
 
   def handle_state(:not_ready, :flush, state) do
@@ -202,6 +223,7 @@ defmodule Daidoquer2.GuildSpeaker do
     case start_speaking(msg, state) do
       {:ok, state} ->
         D.start_listen_async(state.guild_id)
+        set_check_speaking_timer(state.guild_id)
         {:noreply, %{state | state: :speaking}}
 
       {:error, _error} ->
@@ -236,8 +258,9 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_state(:speaking, :speaking_ended, state) do
     case consume_queue(state) do
-      {_, %{state: :ready} = state} ->
+      {_, %{state: next} = state} when next != :speaking ->
         D.stop_listen_async(state.guild_id)
+        cancel_check_speaking_timer(state.guild_id)
         {:noreply, state}
 
       res ->
@@ -521,6 +544,15 @@ defmodule Daidoquer2.GuildSpeaker do
 
     D.voice_play!(guild_id, stream, :raw_s)
     pid
+  end
+
+  defp set_check_speaking_timer(guild_id) do
+    # FIXME: 30 sec. is enough?
+    T.set_timer(guild_id, :check_speaking, 30_000, __MODULE__, :callback_timeout)
+  end
+
+  defp cancel_check_speaking_timer(guild_id) do
+    T.cancel_timer(guild_id, :check_speaking)
   end
 
   # defp try_make_voice_ready(guild_id) do
