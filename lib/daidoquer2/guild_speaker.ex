@@ -125,25 +125,27 @@ defmodule Daidoquer2.GuildSpeaker do
     end
   end
 
-  def handle_cast(event, state) do
-    if state.enabled do
-      res = handle_state(state.state, event, state)
+  def handle_cast(event, state) when state.enabled do
+    current_state = state.state
 
-      next_state =
-        case res do
-          {:noreply, state} -> state.state
-          {:stop, :normal, state} -> state.state
-        end
+    case handle_state(current_state, event, state) do
+      {:noreply, state} ->
+        state = handle_state_transition(current_state, state.state, state)
 
-      Logger.debug(
-        "GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: #{inspect(state.state)} -> #{inspect(next_state)}"
-      )
+        Logger.debug(
+          "GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: #{inspect(current_state)} -> #{inspect(state.state)}"
+        )
 
-      res
-    else
-      Logger.debug("GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: disabled")
-      {:noreply, state}
+        {:noreply, state}
+
+      res ->
+        res
     end
+  end
+
+  def handle_cast(event, state) do
+    Logger.debug("GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: disabled")
+    {:noreply, state}
   end
 
   #####
@@ -188,15 +190,7 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_state(:not_ready, :voice_ready, state) do
-    case consume_queue(state) do
-      {_, %{state: next} = state} when next == :speaking ->
-        D.start_listen_async(state.guild_id)
-        set_check_speaking_timer(state.guild_id)
-        {:noreply, state}
-
-      res ->
-        res
-    end
+    consume_queue(state)
   end
 
   def handle_state(:not_ready, :flush, state) do
@@ -222,8 +216,6 @@ defmodule Daidoquer2.GuildSpeaker do
     # Start speaking the message
     case start_speaking(msg, state) do
       {:ok, state} ->
-        D.start_listen_async(state.guild_id)
-        set_check_speaking_timer(state.guild_id)
         {:noreply, %{state | state: :speaking}}
 
       {:error, _error} ->
@@ -257,15 +249,7 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_state(:speaking, :speaking_ended, state) do
-    case consume_queue(state) do
-      {_, %{state: next} = state} when next != :speaking ->
-        D.stop_listen_async(state.guild_id)
-        cancel_check_speaking_timer(state.guild_id)
-        {:noreply, state}
-
-      res ->
-        res
-    end
+    consume_queue(state)
   end
 
   def handle_state(:speaking, :flush, state) do
@@ -277,6 +261,26 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_state(:speaking, :schedule_leave, state) do
     state = queue_msg(state, :leave)
     {:noreply, state}
+  end
+
+  ####
+  # State transitions
+
+  def handle_state_transition(old_state, :speaking, state) when old_state != :speaking do
+    D.start_listen_async(state.guild_id)
+    set_check_speaking_timer(state.guild_id)
+    state
+  end
+
+  def handle_state_transition(:speaking, new_state, state) when new_state != :speaking do
+    D.stop_listen_async(state.guild_id)
+    cancel_check_speaking_timer(state.guild_id)
+    state
+  end
+
+  def handle_state_transition(_, _, state) do
+    # Ignore
+    state
   end
 
   #####
