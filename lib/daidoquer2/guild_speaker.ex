@@ -213,14 +213,8 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_state(:ready, {:message, msg}, state) do
-    # Start speaking the message
-    case start_speaking(msg, state) do
-      {:ok, state} ->
-        {:noreply, %{state | state: :speaking}}
-
-      {:error, _error} ->
-        {:noreply, %{state | state: :ready}}
-    end
+    state = queue_msg(state, msg)
+    consume_queue(state)
   end
 
   def handle_state(:ready, :flush, state) do
@@ -316,13 +310,13 @@ defmodule Daidoquer2.GuildSpeaker do
     end
   end
 
-  def leave_vc(state) do
+  defp leave_vc(state) do
     Logger.debug("GuildSpeaker: #{state.guild_id}: stopping")
     D.leave_voice_channel(state.guild_id)
     disable(state)
   end
 
-  def disable(state) do
+  defp disable(state) do
     {:noreply, %{state | enabled: false, state: :not_ready, msg_queue: :queue.new()}}
   end
 
