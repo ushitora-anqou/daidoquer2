@@ -251,6 +251,9 @@ defmodule Daidoquer2.Guild do
     if not_yet_joined and someone_in do
       Logger.debug("Joining #{state.guild_id}: #{vc_id}")
       D.join_voice_channel!(state.guild_id, vc_id)
+      # DON'T send any messages (in both TC and VC) by spec.
+      # But we need to enable the speaker
+      S.cast_enable(state.speaker)
     end
 
     {:noreply, state}

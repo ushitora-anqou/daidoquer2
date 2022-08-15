@@ -12,9 +12,6 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
 
   def i_join(state) do
     Logger.debug("I joined #{state.guild_id}")
-    S.cast_enable(state.speaker)
-    m = voice_template(:i_joined)
-    S.cast_bare_message(state.speaker, m)
   end
 
   def i_leave(state) do
@@ -73,9 +70,16 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
   def summon(msg, vc_id, state) do
     # Really join
     D.join_voice_channel!(state.guild_id, vc_id)
+    S.cast_enable(state.speaker)
+
+    # Send text message
     channel = D.channel!(vc_id)
     m = text_template(:summon, %{channel_name: channel.name})
     text_message(msg, m)
+
+    # Speak voice message
+    m = voice_template(:i_joined)
+    S.cast_bare_message(state.speaker, m)
   end
 
   def unsummon_not_joined(msg, _state) do
