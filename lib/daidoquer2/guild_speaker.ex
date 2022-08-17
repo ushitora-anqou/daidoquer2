@@ -448,8 +448,12 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   defp tts_via_post(text, url) do
-    res = HTTPoison.post!(url, text)
-    {:ok, res.body}
+    try do
+      res = HTTPoison.post!(url, text)
+      {:ok, res.body}
+    rescue
+      e -> {:error, e}
+    end
   end
 
   defp tts_via_sushikicom(text, param) do
