@@ -7,6 +7,7 @@ defmodule Daidoquer2.Guild do
   alias Daidoquer2.GuildDiscordEventHandler, as: H
   alias Daidoquer2.GuildSpeaker, as: S
   alias Daidoquer2.GuildTimer, as: T
+  alias Daidoquer2.GuildVoiceStateStore, as: VS
 
   #####
   # External API
@@ -72,9 +73,10 @@ defmodule Daidoquer2.Guild do
 
     state = %{
       guild_id: guild_id,
-      voice_states: %{},
       speaker: S.name(guild_id)
     }
+
+    VS.reset(guild_id)
 
     cond do
       !is_in_vc && !voice_connected ->
@@ -102,16 +104,19 @@ defmodule Daidoquer2.Guild do
 
   def handle_cast({:voice_state_updated, voice_state}, state) do
     true = voice_state.guild_id == state.guild_id
+    guild_id = state.guild_id
+    user_id = voice_state.user_id
 
-    p = state.voice_states |> Map.get(voice_state.user_id)
+    current_voice_states = VS.get(guild_id)
+    p = current_voice_states |> Map.get(user_id)
     c = voice_state
     my_user_id = D.me().id
-    ch = D.voice_channel_of_user!(state.guild_id, my_user_id)
+    ch = D.voice_channel_of_user!(guild_id, my_user_id)
 
     joining_any_channel = c.channel_id != nil and (p == nil or p.channel_id != c.channel_id)
     joining = joining_any_channel and c.channel_id == ch
     leaving = p != nil and ch != nil and p.channel_id != c.channel_id and p.channel_id == ch
-    about_me = voice_state.user_id == my_user_id
+    about_me = user_id == my_user_id
     my_joining = about_me and joining
     my_leaving = about_me and (leaving or ch == nil)
 
@@ -123,45 +128,43 @@ defmodule Daidoquer2.Guild do
       p != nil and (Map.has_key?(p, :self_stream) and p.self_stream) and
         (not Map.has_key?(c, :self_stream) or not c.self_stream)
 
-    new_state = %{
-      state
-      | voice_states: Map.put(state.voice_states, voice_state.user_id, voice_state)
-    }
+    new_voice_states = Map.put(current_voice_states, user_id, voice_state)
+    VS.put(guild_id, new_voice_states)
 
     cond do
       my_joining ->
-        H.i_join(new_state)
+        H.i_join(state)
 
-        {:noreply, new_state}
+        {:noreply, state}
 
       my_leaving ->
-        H.i_leave(new_state)
-        {:noreply, new_state}
+        H.i_leave(state)
+        {:noreply, state}
 
       joining ->
-        H.someone_join(voice_state.user_id, new_state)
-        reset_leave_timer(new_state.guild_id)
-        {:noreply, new_state}
+        H.someone_join(user_id, state)
+        reset_leave_timer(guild_id)
+        {:noreply, state}
 
       leaving ->
-        H.someone_leave(voice_state.user_id, new_state)
-        reset_leave_timer(new_state.guild_id)
-        {:noreply, new_state}
+        H.someone_leave(user_id, state)
+        reset_leave_timer(guild_id)
+        {:noreply, state}
 
       start_streaming ->
-        H.start_streaming(voice_state.user_id, new_state)
-        {:noreply, new_state}
+        H.start_streaming(user_id, state)
+        {:noreply, state}
 
       stop_streaming ->
-        H.stop_streaming(voice_state.user_id, new_state)
-        {:noreply, new_state}
+        H.stop_streaming(user_id, state)
+        {:noreply, state}
 
       joining_any_channel ->
-        set_join_timer(state.guild_id, c.channel_id)
-        {:noreply, new_state}
+        set_join_timer(guild_id, c.channel_id)
+        {:noreply, state}
 
       true ->
-        {:noreply, new_state}
+        {:noreply, state}
     end
   end
 
@@ -175,27 +178,26 @@ defmodule Daidoquer2.Guild do
     true = guild_id == state.guild_id
     voice_channel_id = D.voice_channel_of_user!(state.guild_id, uid)
 
-    new_state = %{
-      state
-      | voice_states:
-          state.guild_id
-          |> D.guild!()
-          |> Map.get(:voice_states)
-          |> Map.new(fn s -> {s.user_id, s} end)
-    }
+    new_voice_state =
+      state.guild_id
+      |> D.guild!()
+      |> Map.get(:voice_states)
+      |> Map.new(fn s -> {s.user_id, s} end)
+
+    VS.put(guild_id, new_voice_state)
 
     cond do
       voice_channel_id == nil ->
-        H.summon_not_from_vc(msg, new_state)
-        {:noreply, new_state}
+        H.summon_not_from_vc(msg, state)
+        {:noreply, state}
 
       voice_channel_id == D.voice_channel_of_user!(state.guild_id, D.me().id) ->
-        H.summon_but_already_joined(msg, new_state)
-        {:noreply, new_state}
+        H.summon_but_already_joined(msg, state)
+        {:noreply, state}
 
       true ->
-        H.summon(msg, voice_channel_id, new_state)
-        {:noreply, new_state}
+        H.summon(msg, voice_channel_id, state)
+        {:noreply, state}
     end
   end
 
