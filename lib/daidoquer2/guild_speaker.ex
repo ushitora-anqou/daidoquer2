@@ -3,8 +3,10 @@ defmodule Daidoquer2.GuildSpeaker do
 
   require Logger
 
-  alias Daidoquer2.Audio, as: A
+  alias Daidoquer2.AudioDirect, as: AD
+  alias Daidoquer2.AudioFiltered, as: AF
   alias Daidoquer2.DiscordAPI, as: D
+  alias Daidoquer2.GenAudio, as: GA
   alias Daidoquer2.Guild, as: G
   alias Daidoquer2.GuildTimer, as: T
 
@@ -92,7 +94,7 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   def handle_cast(:voice_incoming, state) when state.audio_pid != nil do
-    ms = Application.fetch_env!(:daidoquer2, :ms_before_stop_low_voice)
+    ms = ms_before_stop_low_voice()
 
     cond do
       ms == 0 ->
@@ -103,7 +105,7 @@ defmodule Daidoquer2.GuildSpeaker do
 
       true ->
         Logger.debug("Start low voice: #{state.guild_id}")
-        A.enable_low_voice(state.audio_pid)
+        AF.enable_low_voice(state.audio_pid)
         T.set_timer(state.guild_id, :stop_low_voice, ms, __MODULE__, :callback_timeout)
         {:noreply, %{state | voice_incoming_cnt: 0}}
     end
@@ -152,7 +154,7 @@ defmodule Daidoquer2.GuildSpeaker do
   # Timeout
 
   def handle_timeout(:stop_low_voice, state) when state.audio_pid != nil do
-    A.disable_low_voice(state.audio_pid)
+    AF.disable_low_voice(state.audio_pid)
     {:noreply, state}
   end
 
@@ -324,7 +326,7 @@ defmodule Daidoquer2.GuildSpeaker do
   # Internals
 
   defp start_speaking(msg, state) do
-    A.cast_stop(state.audio_pid)
+    GA.cast_stop(state.audio_pid)
     guild_id = state.guild_id
 
     {text, uid} =
@@ -534,11 +536,20 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   defp start_playing(guild_id, src_data) do
-    {:ok, pid} = A.start_link(src_data)
+    {:ok, pid} =
+      case ms_before_stop_low_voice() do
+        0 ->
+          # Disable low voice
+          AD.start_link(src_data)
+
+        _ ->
+          # Enable low voice
+          AF.start_link(src_data)
+      end
 
     stream =
       Stream.unfold(nil, fn nil ->
-        case A.call_opus_data(pid) do
+        case GA.call_opus_data(pid) do
           nil -> nil
           val -> {val, nil}
         end
@@ -555,6 +566,10 @@ defmodule Daidoquer2.GuildSpeaker do
 
   defp cancel_check_speaking_timer(guild_id) do
     T.cancel_timer(guild_id, :check_speaking)
+  end
+
+  defp ms_before_stop_low_voice() do
+    Application.fetch_env!(:daidoquer2, :ms_before_stop_low_voice)
   end
 
   # defp try_make_voice_ready(guild_id) do
