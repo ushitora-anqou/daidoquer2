@@ -84,6 +84,7 @@ defmodule Daidoquer2.Guild do
       is_in_vc && voice_connected ->
         reset_leave_timer(guild_id)
         S.cast_enable(state.speaker)
+        state = %{state | voice_states: get_voice_states(guild_id)}
         {:noreply, state}
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
@@ -174,15 +175,7 @@ defmodule Daidoquer2.Guild do
 
     true = guild_id == state.guild_id
     voice_channel_id = D.voice_channel_of_user!(state.guild_id, uid)
-
-    new_state = %{
-      state
-      | voice_states:
-          state.guild_id
-          |> D.guild!()
-          |> Map.get(:voice_states)
-          |> Map.new(fn s -> {s.user_id, s} end)
-    }
+    new_state = %{state | voice_states: get_voice_states(guild_id)}
 
     cond do
       voice_channel_id == nil ->
@@ -290,5 +283,12 @@ defmodule Daidoquer2.Guild do
       _ ->
         T.cancel_timer(guild_id, :leave)
     end
+  end
+
+  defp get_voice_states(guild_id) do
+    guild_id
+    |> D.guild!()
+    |> Map.get(:voice_states)
+    |> Map.new(fn s -> {s.user_id, s} end)
   end
 end
