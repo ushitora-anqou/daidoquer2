@@ -14,7 +14,7 @@ defmodule Daidoquer2.GuildSupSup do
   end
 
   def init(:no_args) do
-    DynamicSupervisor.init(strategy: :one_for_one)
+    DynamicSupervisor.init(strategy: :one_for_one, max_seconds: 30)
   end
 
   def add_guild(guild_id) do

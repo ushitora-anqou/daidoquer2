@@ -19,7 +19,7 @@ defmodule Daidoquer2.Application do
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Daidoquer2.Supervisor]
+    opts = [strategy: :one_for_all, name: Daidoquer2.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end
