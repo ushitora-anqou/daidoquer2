@@ -47,7 +47,7 @@ defmodule Daidoquer2.MixProject do
       {:temp, "~> 0.4"},
       # {:emojix, "~> 0.3"},
       {:emojix, git: "https://github.com/ushitora-anqou/emojix.git"},
-      {:google_api_text_to_speech, "~> 0.12.1"},
+      {:google_api_text_to_speech, "~> 0.15"},
       {:goth, "~> 1.2.0"},
       {:erlexec,
        git: "https://github.com/saleyn/erlexec.git",
