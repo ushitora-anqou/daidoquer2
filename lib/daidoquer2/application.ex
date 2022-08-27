@@ -11,12 +11,13 @@ defmodule Daidoquer2.Application do
       # {Daidoquer2.Worker, arg}
       Daidoquer2.DiscordEventConsumer,
       Daidoquer2.GuildSupSup,
-      Daidoquer2.GuildTimer,
       {Registry, [keys: :unique, name: Registry.GuildSup]},
       {Registry, [keys: :unique, name: Registry.Guild]},
       {Registry, [keys: :unique, name: Registry.InvChecker]},
       {Registry, [keys: :unique, name: Registry.Speaker]}
     ]
+
+    Daidoquer2.CancellableTimer.init()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

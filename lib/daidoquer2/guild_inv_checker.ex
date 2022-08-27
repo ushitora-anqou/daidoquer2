@@ -5,7 +5,7 @@ defmodule Daidoquer2.GuildInvChecker do
 
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GuildSpeaker, as: S
-  alias Daidoquer2.GuildTimer, as: T
+  alias Daidoquer2.CancellableTimer, as: T
 
   @interval_for_checking_invariant 60 * 1000
   @max_retries_for_check_invariant 3
@@ -21,15 +21,11 @@ defmodule Daidoquer2.GuildInvChecker do
     GenServer.start_link(__MODULE__, guild_id, name: name(guild_id))
   end
 
-  def callback_timeout(key, guild_id, timer_ref) do
-    GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
-  end
-
   #####
   # GenServer callbacks
 
   def init(guild_id) do
-    set_check_invariant_timer(guild_id)
+    set_check_invariant_timer()
 
     {:ok,
      %{
@@ -38,23 +34,16 @@ defmodule Daidoquer2.GuildInvChecker do
      }}
   end
 
-  def handle_cast({:timeout, key, timer_ref}, state) do
-    case T.check_timeout(timer_ref) do
-      false ->
-        # Ignore fake timeout
-        {:noreply, state}
-
-      true ->
-        handle_timeout(key, state)
-    end
+  def handle_info({:timeout, arg}, state) do
+    T.dispatch(arg, state, __MODULE__)
   end
 
-  defp handle_timeout(:check_invariant, state) do
+  def handle_timeout(:check_invariant, state) do
     # Check everything is ok.
     # NOTE: This check is intented to be used when Nostrum's WebSocket connection is quietly broken.
-    guild_id = state.guild_id
-    set_check_invariant_timer(guild_id)
+    set_check_invariant_timer()
 
+    guild_id = state.guild_id
     voice_connected = D.voice(guild_id) != nil
     is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
     speaker_enabled = S.is_enabled(S.name(guild_id))
@@ -91,13 +80,7 @@ defmodule Daidoquer2.GuildInvChecker do
   #####
   # Internals
 
-  defp set_check_invariant_timer(guild_id) do
-    T.set_timer(
-      guild_id,
-      :check_invariant,
-      @interval_for_checking_invariant,
-      __MODULE__,
-      :callback_timeout
-    )
+  defp set_check_invariant_timer() do
+    T.set_timer(:check_invariant, @interval_for_checking_invariant)
   end
 end

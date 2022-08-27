@@ -8,7 +8,7 @@ defmodule Daidoquer2.GuildSpeaker do
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GenAudio, as: GA
   alias Daidoquer2.Guild, as: G
-  alias Daidoquer2.GuildTimer, as: T
+  alias Daidoquer2.CancellableTimer, as: T
 
   @trigger_voice_incoming_cnt 25
 
@@ -60,10 +60,6 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :voice_incoming)
   end
 
-  def callback_timeout(key, guild_id, timer_ref) do
-    GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
-  end
-
   def is_enabled(pid) do
     GenServer.call(pid, :enabled)
   end
@@ -110,7 +106,7 @@ defmodule Daidoquer2.GuildSpeaker do
       true ->
         Logger.debug("Start low voice: #{state.guild_id}")
         AF.enable_low_voice(state.audio_pid)
-        T.set_timer(state.guild_id, :stop_low_voice, ms, __MODULE__, :callback_timeout)
+        T.set_timer(:stop_low_voice, ms)
         {:noreply, %{state | voice_incoming_cnt: 0}}
     end
   end
@@ -118,17 +114,6 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_cast(:voice_incoming, state) do
     # Ignore
     {:noreply, state}
-  end
-
-  def handle_cast({:timeout, key, timer_ref}, state) do
-    case T.check_timeout(timer_ref) do
-      false ->
-        # Ignore fake timeout
-        {:noreply, state}
-
-      true ->
-        handle_timeout(key, state)
-    end
   end
 
   def handle_cast(event, state) when state.enabled do
@@ -158,6 +143,10 @@ defmodule Daidoquer2.GuildSpeaker do
     {:reply, state.enabled, state}
   end
 
+  def handle_info({:timeout, arg}, state) do
+    T.dispatch(arg, state, __MODULE__)
+  end
+
   #####
   # Timeout
 
@@ -176,7 +165,7 @@ defmodule Daidoquer2.GuildSpeaker do
 
     case D.voice_playing?(state.guild_id) do
       true ->
-        set_check_speaking_timer(state.guild_id)
+        set_check_speaking_timer()
         {:noreply, state}
 
       false ->
@@ -272,13 +261,13 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_state_transition(old_state, :speaking, state) when old_state != :speaking do
     D.start_listen_async(state.guild_id)
-    set_check_speaking_timer(state.guild_id)
+    set_check_speaking_timer()
     state
   end
 
   def handle_state_transition(:speaking, new_state, state) when new_state != :speaking do
     D.stop_listen_async(state.guild_id)
-    cancel_check_speaking_timer(state.guild_id)
+    cancel_check_speaking_timer()
     state
   end
 
@@ -567,13 +556,13 @@ defmodule Daidoquer2.GuildSpeaker do
     pid
   end
 
-  defp set_check_speaking_timer(guild_id) do
+  defp set_check_speaking_timer() do
     # FIXME: 30 sec. is enough?
-    T.set_timer(guild_id, :check_speaking, 30_000, __MODULE__, :callback_timeout)
+    T.set_timer(:check_speaking, 30_000)
   end
 
-  defp cancel_check_speaking_timer(guild_id) do
-    T.cancel_timer(guild_id, :check_speaking)
+  defp cancel_check_speaking_timer() do
+    T.cancel_timer(:check_speaking)
   end
 
   defp ms_before_stop_low_voice() do

@@ -6,7 +6,7 @@ defmodule Daidoquer2.Guild do
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GuildDiscordEventHandler, as: H
   alias Daidoquer2.GuildSpeaker, as: S
-  alias Daidoquer2.GuildTimer, as: T
+  alias Daidoquer2.CancellableTimer, as: T
 
   #####
   # External API
@@ -48,10 +48,6 @@ defmodule Daidoquer2.Guild do
   def thread_create(pid, channel) do
     Logger.debug("THREAD_CREATE: #{inspect(channel)}")
     GenServer.cast(pid, {:thread_create, channel})
-  end
-
-  def callback_timeout(key, guild_id, timer_ref) do
-    GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
   end
 
   #####
@@ -158,7 +154,7 @@ defmodule Daidoquer2.Guild do
         {:noreply, new_state}
 
       joining_any_channel ->
-        set_join_timer(state.guild_id, c.channel_id)
+        set_join_timer(c.channel_id)
         {:noreply, new_state}
 
       true ->
@@ -218,23 +214,16 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  def handle_cast({:timeout, key, timer_ref}, state) do
-    case T.check_timeout(timer_ref) do
-      false ->
-        # Ignore fake timeout
-        {:noreply, state}
-
-      true ->
-        handle_timeout(key, state)
-    end
-  end
-
   def handle_cast(:voice_ready, state) do
     S.notify_voice_ready(state.speaker)
     {:noreply, state}
   end
 
-  defp handle_timeout({:join, vc_id}, state) do
+  def handle_info({:timeout, arg}, state) do
+    T.dispatch(arg, state, __MODULE__)
+  end
+
+  def handle_timeout({:join, vc_id}, state) do
     # Join the channel now, if:
     # - I've not yet joined a channel and
     # - Someone is still in the channel
@@ -252,7 +241,7 @@ defmodule Daidoquer2.Guild do
     {:noreply, state}
   end
 
-  defp handle_timeout(:leave, state) do
+  def handle_timeout(:leave, state) do
     # Leave the channel now
     Logger.debug("Leaving #{state.guild_id}")
     S.stop_speaking_and_clear_message_queue(state.speaker)
@@ -263,11 +252,11 @@ defmodule Daidoquer2.Guild do
   #####
   # Internals
 
-  defp set_join_timer(guild_id, vc_id) do
+  defp set_join_timer(vc_id) do
     ms = Application.fetch_env!(:daidoquer2, :ms_before_join)
 
     if ms != 0 do
-      T.set_timer(guild_id, {:join, vc_id}, ms, __MODULE__, :callback_timeout)
+      T.set_timer({:join, vc_id}, ms)
     end
   end
 
@@ -277,11 +266,11 @@ defmodule Daidoquer2.Guild do
         ms = Application.fetch_env!(:daidoquer2, :ms_before_leave)
 
         if ms != 0 do
-          T.set_timer(guild_id, :leave, ms, __MODULE__, :callback_timeout)
+          T.set_timer(:leave, ms)
         end
 
       _ ->
-        T.cancel_timer(guild_id, :leave)
+        T.cancel_timer(:leave)
     end
   end
 
