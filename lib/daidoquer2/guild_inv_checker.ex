@@ -41,8 +41,6 @@ defmodule Daidoquer2.GuildInvChecker do
   def handle_timeout(:check_invariant, state) do
     # Check everything is ok.
     # NOTE: This check is intented to be used when Nostrum's WebSocket connection is quietly broken.
-    set_check_invariant_timer()
-
     guild_id = state.guild_id
     voice_connected = D.voice(guild_id) != nil
     is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
@@ -64,12 +62,14 @@ defmodule Daidoquer2.GuildInvChecker do
 
     case result do
       :ok ->
+        set_check_invariant_timer()
         {:noreply, %{state | fail_counter: 0}}
 
       {:error, reason} ->
         Logger.warn("Invariant check failed: #{state.fail_counter}: #{inspect(reason)}")
 
         if state.fail_counter < @max_retries_for_check_invariant do
+          set_check_invariant_timer(state.fail_counter + 1)
           {:noreply, %{state | fail_counter: state.fail_counter + 1}}
         else
           {:stop, reason, state}
@@ -80,7 +80,9 @@ defmodule Daidoquer2.GuildInvChecker do
   #####
   # Internals
 
-  defp set_check_invariant_timer() do
-    T.set_timer(:check_invariant, @interval_for_checking_invariant)
+  defp set_check_invariant_timer(fail_counter \\ 0) do
+    scale = :math.pow(2, fail_counter) |> round
+    ms = (@interval_for_checking_invariant / scale) |> round
+    T.set_timer(:check_invariant, ms)
   end
 end
