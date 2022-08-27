@@ -64,6 +64,10 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(name(guild_id), {:timeout, key, timer_ref})
   end
 
+  def is_enabled(pid) do
+    GenServer.call(pid, :enabled)
+  end
+
   #####
   # GenServer callbacks
 
@@ -148,6 +152,10 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_cast(event, state) do
     Logger.debug("GuildSpeaker: #{state.guild_id}: handle_cast: #{inspect(event)}: disabled")
     {:noreply, state}
+  end
+
+  def handle_call(:enabled, _from, state) do
+    {:reply, state.enabled, state}
   end
 
   #####

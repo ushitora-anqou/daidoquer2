@@ -21,7 +21,8 @@ defmodule Daidoquer2.GuildSup do
   def init(guild_id) do
     children = [
       {Daidoquer2.GuildSpeaker, guild_id},
-      {Daidoquer2.Guild, guild_id}
+      {Daidoquer2.Guild, guild_id},
+      {Daidoquer2.GuildInvChecker, guild_id}
     ]
 
     Supervisor.init(children, strategy: :one_for_all)
