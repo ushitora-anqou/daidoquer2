@@ -28,8 +28,7 @@ config :nostrum,
 config :daidoquer2,
   announcer: {:sushikicom, "?speaker=2"},
   create_slash_command: fn c ->
-    guild_id = 000_000_000_000_000_000
-    Nostrum.Api.create_guild_application_command(guild_id, c)
+    Nostrum.Api.create_global_application_command(c)
   end,
   dummy_message: "ちくわ大明神。",
   ffmpeg_path: System.get_env("FFMPEG_PATH", "/usr/bin/ffmpeg"),
