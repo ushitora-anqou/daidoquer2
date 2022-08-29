@@ -25,3 +25,4 @@ daidoquer2-*.tar
 # Written by anqou
 priv/check_sjis.so
 config/runtime.exs
+config/env
