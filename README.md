@@ -22,23 +22,10 @@ Discord用の読み上げbotです。テキストチャンネルに流れてき�
 
 ## 使い方
 
-### Docker を使って構築
+Docker Compose を使えるようにした環境で [daidoquer2-docker-compose](https://github.com/ushitora-anqou/daidoquer2-docker-compose) の手順に従ってください。
 
-```
-$ git clone https://github.com/ushitora-anqou/daidoquer2.git
-$ cd daidoquer2
-$ cp config/runtime.exs.default config/runtime.exs
-$ vim config/env
-# Set Discord token obtained from https://discord.com/developers/applications
-DISCORD_TOKEN='XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-# Set API key for su-shiki.com obtained from https://su-shiki.com/api/
-SUSHIKICOM_API_TOKEN="XXXXXXXXXXXXXXX"
-# Set path to cred for Google TTS (if necessary)
-GOOGLE_APPLICATION_CREDENTIALS='/path/to/cred.json'
-$ vim config/runtime.exs
-# Update settings as you like
-$ docker build -t ddq2 --build-arg DDQ2_VERSION=$(git tag -l | sort -V | tail -1 | sed 's/^.//') --build-arg ARCH=amd64 .
-$ docker run -v $PWD/config:/app-config ddq2:latest
-```
+## 開発環境の立ち上げ方
 
-TODO: もう少し丁寧に手順を書く。
+基本的な Elixir プロジェクトなので、最新の Elixir を入れて `iex -S mix` してください。
+
+TODO: もう少し真面目に書く
