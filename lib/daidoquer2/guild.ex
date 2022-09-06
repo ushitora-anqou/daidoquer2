@@ -113,11 +113,13 @@ defmodule Daidoquer2.Guild do
     my_leaving = about_me and (leaving or ch == nil)
 
     start_streaming =
-      p != nil and (not Map.has_key?(p, :self_stream) or not p.self_stream) and
+      c.channel_id == ch and p != nil and
+        (not Map.has_key?(p, :self_stream) or not p.self_stream) and
         (Map.has_key?(c, :self_stream) and c.self_stream)
 
     stop_streaming =
-      p != nil and (Map.has_key?(p, :self_stream) and p.self_stream) and
+      c.channel_id == ch and p != nil and
+        (Map.has_key?(p, :self_stream) and p.self_stream) and
         (not Map.has_key?(c, :self_stream) or not c.self_stream)
 
     new_state = %{
