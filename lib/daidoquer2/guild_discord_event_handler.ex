@@ -4,6 +4,8 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GuildSpeaker, as: S
 
+  @version Mix.Project.config()[:version]
+
   def thread_create(thread_name, user_name, state) do
     Logger.debug("Thread created (#{state.guild_id}) #{thread_name} by #{user_name}")
     m = voice_template(:created_thread, %{user_name: user_name, thread_name: thread_name})
@@ -105,7 +107,7 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
   end
 
   def need_help(msg) do
-    m = text_template(:help)
+    m = text_template(:help, %{version: @version})
     text_message(msg, m)
   end
 
