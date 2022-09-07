@@ -5,6 +5,9 @@ defmodule Daidoquer2.DiscordAPI do
   alias Nostrum.Cache.ChannelCache
   alias Nostrum.Cache.UserCache
   alias Nostrum.Cache.GuildCache
+  alias Nostrum.Struct.Embed
+
+  @embed_title "daidoquer2"
 
   def me do
     Me.get()
@@ -14,20 +17,23 @@ defmodule Daidoquer2.DiscordAPI do
     Voice.get_voice(guild_id)
   end
 
+  defp message_embeds(message) do
+    [
+      %Nostrum.Struct.Embed{}
+      |> Embed.put_title(@embed_title)
+      |> Embed.put_description(message)
+    ]
+  end
+
   def text_message(channel_id, message) do
-    Api.create_message(channel_id, message)
+    Api.create_message!(channel_id, embeds: message_embeds(message))
   end
 
   def text_message_to_interaction(interaction, text) do
-    response = %{
-      # ChannelMessageWithSource
+    Api.create_interaction_response(interaction, %{
       type: 4,
-      data: %{
-        content: text
-      }
-    }
-
-    Nostrum.Api.create_interaction_response(interaction, response)
+      data: %{embeds: message_embeds(text)}
+    })
   end
 
   def channel(chan_id) do
