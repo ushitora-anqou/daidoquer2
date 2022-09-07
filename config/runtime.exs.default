@@ -96,7 +96,16 @@ config :daidoquer2,
     summon_not_from_vc: fn _ -> "ボイスチャネルに入ってから呼んでください。" end,
     unsummon: fn _ -> "ボイスチャネルを離れます。" end,
     unsummon_not_from_same_vc: fn _ -> "同じボイスチャネルから呼んでください。" end,
-    unsummon_not_joined: fn _ -> "まだボイスチャネルに入っていません。" end
+    unsummon_not_joined: fn _ -> "まだボイスチャネルに入っていません。" end,
+    help: fn info ->
+      ~s"""
+      Daidoquer2 v#{info.version}
+
+      /join  Join the VC
+      /leave Leave the VC
+      /help  Show this help
+      """
+    end
   },
   template_voice_message: %{
     i_joined: fn _ -> "こんにちは、daidoquer2です。やさしくしてね。" end,
