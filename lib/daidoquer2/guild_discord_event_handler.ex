@@ -104,6 +104,11 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
     text_message(msg, tm)
   end
 
+  def need_help(msg) do
+    m = text_template(:help)
+    text_message(msg, m)
+  end
+
   #####
   # Internals
 

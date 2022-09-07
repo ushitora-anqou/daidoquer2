@@ -4,6 +4,7 @@ defmodule Daidoquer2.DiscordEventConsumer do
   require Logger
 
   alias Daidoquer2.Guild, as: G
+  alias Daidoquer2.GuildDiscordEventHandler, as: H
   alias Daidoquer2.GuildSpeaker, as: S
   alias Nostrum.Struct.Interaction
 
@@ -24,6 +25,12 @@ defmodule Daidoquer2.DiscordEventConsumer do
       create_slash_command.(%{
         name: "leave",
         description: "leave the VC"
+      })
+
+    {:ok, _} =
+      create_slash_command.(%{
+        name: "help",
+        description: "help"
       })
   end
 
@@ -52,7 +59,8 @@ defmodule Daidoquer2.DiscordEventConsumer do
         ensure_guild(msg.guild_id)
         G.leave_channel(G.name(msg.guild_id), msg)
 
-      # FIXME: We probably need "!ddq help"
+      [_, "help"] ->
+        H.need_help({:message, msg})
 
       _ ->
         # Just ignore "!ddq invalid-command"
@@ -97,6 +105,10 @@ defmodule Daidoquer2.DiscordEventConsumer do
   defp handle_interaction("leave", interaction) do
     guild_id = interaction.guild_id
     G.leave_channel_via_interaction(G.name(guild_id), interaction)
+  end
+
+  defp handle_interaction("help", interaction) do
+    H.need_help({:interaction, interaction})
   end
 
   defp ensure_guild(guild_id) do
