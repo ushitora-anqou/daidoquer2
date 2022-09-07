@@ -7,8 +7,6 @@ defmodule Daidoquer2.DiscordAPI do
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Struct.Embed
 
-  @embed_title "daidoquer2"
-
   def me do
     Me.get()
   end
@@ -20,7 +18,6 @@ defmodule Daidoquer2.DiscordAPI do
   defp message_embeds(message) do
     [
       %Nostrum.Struct.Embed{}
-      |> Embed.put_title(@embed_title)
       |> Embed.put_description(message)
     ]
   end
