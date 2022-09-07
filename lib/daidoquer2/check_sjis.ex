@@ -6,7 +6,7 @@ defmodule Daidoquer2.CheckSjis do
     :erlang.load_nif(path, 0)
   end
 
-  def codepoint(a) do
+  def codepoint(_) do
     raise "NIF check_sjis/1 not implemented"
   end
 end

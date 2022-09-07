@@ -7,7 +7,6 @@ defmodule Daidoquer2.GuildSpeaker do
   alias Daidoquer2.AudioFiltered, as: AF
   alias Daidoquer2.DiscordAPI, as: D
   alias Daidoquer2.GenAudio, as: GA
-  alias Daidoquer2.Guild, as: G
   alias Daidoquer2.CancellableTimer, as: T
 
   @trigger_voice_incoming_cnt 25
