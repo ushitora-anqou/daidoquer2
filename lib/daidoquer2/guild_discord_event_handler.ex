@@ -70,8 +70,7 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
 
   def summon(msg, vc_id, state) do
     # Really join
-    D.join_voice_channel!(state.guild_id, vc_id)
-    S.cast_enable(state.speaker)
+    S.join_channel(state.speaker, vc_id)
 
     # Send text message
     channel = D.channel!(vc_id)

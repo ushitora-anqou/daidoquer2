@@ -51,6 +51,10 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :schedule_leave)
   end
 
+  def join_channel(pid, vchannel) do
+    GenServer.cast(pid, {:join, vchannel})
+  end
+
   def cast_enable(pid) do
     GenServer.cast(pid, :enable)
   end
@@ -137,6 +141,11 @@ defmodule Daidoquer2.GuildSpeaker do
         D.join_voice_channel!(state.guild_id, vchannel)
         {:noreply, %{new_state | enabled: true, msg_queue: state.msg_queue}}
     end
+  end
+
+  def handle_cast({:join, vchannel}, state) do
+    D.join_voice_channel!(state.guild_id, vchannel)
+    {:noreply, %{state | enabled: true}}
   end
 
   def handle_cast(event, state) when state.enabled do
