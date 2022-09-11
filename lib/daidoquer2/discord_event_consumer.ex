@@ -88,6 +88,13 @@ defmodule Daidoquer2.DiscordEventConsumer do
     S.notify_voice_incoming(S.name(state.guild_id))
   end
 
+  def handle_event(
+        {:VOICE_SERVER_UPDATE,
+         %Nostrum.Struct.Event.VoiceServerUpdate{endpoint: endpoint, guild_id: guild_id}, _}
+      ) do
+    S.notify_voice_server_update(S.name(guild_id), endpoint)
+  end
+
   def handle_event({:THREAD_CREATE, channel, _}) do
     G.thread_create(G.name(channel.guild_id), channel)
   end

@@ -38,6 +38,10 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, :voice_ready)
   end
 
+  def notify_voice_server_update(pid, endpoint) do
+    GenServer.cast(pid, {:voice_server_update, endpoint})
+  end
+
   def stop_speaking_and_clear_message_queue(pid) do
     GenServer.cast(pid, :flush)
   end
@@ -80,7 +84,8 @@ defmodule Daidoquer2.GuildSpeaker do
        state: initial_state,
        enabled: false,
        audio_pid: nil,
-       voice_incoming_cnt: 0
+       voice_incoming_cnt: 0,
+       endpoint: nil
      }}
   end
 
@@ -113,6 +118,25 @@ defmodule Daidoquer2.GuildSpeaker do
   def handle_cast(:voice_incoming, state) do
     # Ignore
     {:noreply, state}
+  end
+
+  def handle_cast({:voice_server_update, endpoint}, state) do
+    # Reset voice connection
+    Logger.debug("VOICE_SERVER_UPDATE: #{state.guild_id}: #{endpoint}")
+    vchannel = D.voice_channel_of_user!(state.guild_id, D.me().id)
+
+    cond do
+      vchannel == nil ->
+        {:noreply, state}
+
+      state.endpoint == nil ->
+        {:noreply, %{state | endpoint: endpoint}}
+
+      true ->
+        {:noreply, new_state} = leave_vc(state)
+        D.join_voice_channel!(state.guild_id, vchannel)
+        {:noreply, %{new_state | enabled: true, msg_queue: state.msg_queue}}
+    end
   end
 
   def handle_cast(event, state) when state.enabled do
@@ -315,7 +339,8 @@ defmodule Daidoquer2.GuildSpeaker do
   end
 
   defp disable(state) do
-    {:noreply, %{state | enabled: false, state: :not_ready, msg_queue: :queue.new()}}
+    {:noreply,
+     %{state | enabled: false, state: :not_ready, msg_queue: :queue.new(), endpoint: nil}}
   end
 
   #####
