@@ -18,7 +18,6 @@ defmodule Daidoquer2.GuildDiscordEventHandler do
 
   def i_leave(state) do
     Logger.debug("I left #{state.guild_id}")
-    S.cast_disable(state.speaker)
   end
 
   def someone_join(user_id, state) do
