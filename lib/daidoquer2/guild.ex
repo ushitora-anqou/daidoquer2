@@ -54,11 +54,6 @@ defmodule Daidoquer2.Guild do
   # GenServer callbacks
 
   def init(guild_id) do
-    GenServer.cast(self(), {:initialize_state, guild_id})
-    {:ok, %{}}
-  end
-
-  def handle_cast({:initialize_state, guild_id}, _) do
     voice_connected = D.voice(guild_id) != nil
     is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
 
@@ -75,18 +70,18 @@ defmodule Daidoquer2.Guild do
     cond do
       !is_in_vc && !voice_connected ->
         S.cast_disable(state.speaker)
-        {:noreply, state}
+        {:ok, state}
 
       is_in_vc && voice_connected ->
         reset_leave_timer(guild_id)
         S.cast_enable(state.speaker)
         state = %{state | voice_states: get_voice_states(guild_id)}
-        {:noreply, state}
+        {:ok, state}
 
       (is_in_vc && !voice_connected) || (!is_in_vc && voice_connected) ->
         # Invalid state
         Supervisor.stop(Daidoquer2.GuildSup.name(guild_id))
-        {:stop, :normal, state}
+        {:stop, :normal}
     end
   end
 
