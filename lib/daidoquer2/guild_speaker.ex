@@ -55,12 +55,8 @@ defmodule Daidoquer2.GuildSpeaker do
     GenServer.cast(pid, {:join, vchannel})
   end
 
-  def cast_enable(pid) do
-    GenServer.cast(pid, :enable)
-  end
-
-  def cast_disable(pid) do
-    GenServer.cast(pid, :disable)
+  def cast_reset_state(pid) do
+    GenServer.cast(pid, :reset_state)
   end
 
   def notify_voice_incoming(pid) do
@@ -99,6 +95,11 @@ defmodule Daidoquer2.GuildSpeaker do
 
   def handle_cast(:disable, state) do
     disable(state)
+  end
+
+  def handle_cast(:reset_state, state) do
+    state = reset_state(state)
+    {:noreply, state}
   end
 
   def handle_cast(:voice_incoming, state) when state.audio_pid != nil do
@@ -354,6 +355,16 @@ defmodule Daidoquer2.GuildSpeaker do
 
   #####
   # Internals
+
+  defp reset_state(state) do
+    voice_connected = D.voice(state.guild_id) != nil
+
+    if voice_connected do
+      %{state | enabled: true}
+    else
+      %{state | enabled: false, state: :not_ready, msg_queue: :queue.new(), endpoint: nil}
+    end
+  end
 
   defp start_speaking(msg, state) do
     GA.cast_stop(state.audio_pid)

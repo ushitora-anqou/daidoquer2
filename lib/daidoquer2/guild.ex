@@ -54,6 +54,12 @@ defmodule Daidoquer2.Guild do
   # GenServer callbacks
 
   def init(guild_id) do
+    state = %{
+      guild_id: guild_id,
+      voice_states: %{},
+      speaker: S.name(guild_id)
+    }
+
     voice_connected = D.voice(guild_id) != nil
     is_in_vc = D.voice_channel_of_user!(guild_id, D.me().id) != nil
 
@@ -61,20 +67,14 @@ defmodule Daidoquer2.Guild do
       "INIT: Voice status (#{guild_id}): voice_connected=#{voice_connected}: is_in_vc=#{is_in_vc}"
     )
 
-    state = %{
-      guild_id: guild_id,
-      voice_states: %{},
-      speaker: S.name(guild_id)
-    }
+    S.cast_reset_state(state.speaker)
 
     cond do
       !is_in_vc && !voice_connected ->
-        S.cast_disable(state.speaker)
         {:ok, state}
 
       is_in_vc && voice_connected ->
         reset_leave_timer(guild_id)
-        S.cast_enable(state.speaker)
         state = %{state | voice_states: get_voice_states(guild_id)}
         {:ok, state}
 
@@ -125,11 +125,12 @@ defmodule Daidoquer2.Guild do
     cond do
       my_joining ->
         H.i_join(new_state)
-
+        reset_leave_timer(new_state.guild_id)
         {:noreply, new_state}
 
       my_leaving ->
         H.i_leave(new_state)
+        S.cast_reset_state(new_state.speaker)
         {:noreply, new_state}
 
       joining ->
