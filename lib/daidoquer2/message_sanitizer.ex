@@ -1,4 +1,6 @@
 defmodule Daidoquer2.MessageSanitizer do
+  require Logger
+
   alias Daidoquer2.DiscordAPI, as: D
 
   def dummy do
@@ -23,6 +25,10 @@ defmodule Daidoquer2.MessageSanitizer do
        |> String.trim()}
     rescue
       e ->
+        Logger.debug(
+          "Sanitization error: \"#{text}\" @ #{guild_id}\n#{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+        )
+
         {:error, e}
     end
   end
