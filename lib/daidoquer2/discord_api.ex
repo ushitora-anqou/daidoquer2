@@ -54,6 +54,13 @@ defmodule Daidoquer2.DiscordAPI do
     end
   end
 
+  def guild(guild_id) do
+    case GuildCache.get(guild_id) do
+      {:ok, user} -> {:ok, user}
+      {:error, _} -> Api.get_guild(guild_id)
+    end
+  end
+
   def guild!(guild_id) do
     case GuildCache.get(guild_id) do
       {:ok, user} -> user
@@ -85,6 +92,15 @@ defmodule Daidoquer2.DiscordAPI do
   def display_name_of_user!(guild_id, user_id) do
     {:ok, name} = display_name_of_user(guild_id, user_id)
     name
+  end
+
+  def display_name_of_role(guild_id, role_id) do
+    with {:ok, g} <- guild(guild_id),
+         {:ok, r} <- g.roles |> Map.fetch(role_id) do
+      {:ok, r.name}
+    else
+      {:error, _} = e -> e
+    end
   end
 
   def roles_of_user!(guild_id, user_id) do

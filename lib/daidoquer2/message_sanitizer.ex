@@ -10,6 +10,7 @@ defmodule Daidoquer2.MessageSanitizer do
       {:ok,
        text
        |> replace_mention_with_display_name(guild_id)
+       |> replace_mention_with_role(guild_id)
        |> replace_channel_id_with_its_name
        |> replace_with_alternatives
        |> replace_url_with_dummy
@@ -31,6 +32,19 @@ defmodule Daidoquer2.MessageSanitizer do
       {user_id, ""} = user_id_str |> Integer.parse()
 
       case D.display_name_of_user(guild_id, user_id) do
+        {:ok, name} -> "@" <> name
+        {:error, _} -> whole
+      end
+    end)
+  end
+
+  defp replace_mention_with_role(text, guild_id) do
+    Regex.replace(~r/<@&([0-9]+)>/, text, fn whole, role_id_str ->
+      {role_id, ""} = role_id_str |> Integer.parse()
+
+      Logger.debug(">>> #{role_id}")
+
+      case D.display_name_of_role(guild_id, role_id) do
         {:ok, name} -> "@" <> name
         {:error, _} -> whole
       end
