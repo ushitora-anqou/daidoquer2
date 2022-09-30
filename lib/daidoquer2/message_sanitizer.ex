@@ -1,12 +1,16 @@
 defmodule Daidoquer2.MessageSanitizer do
+  alias Daidoquer2.DiscordAPI, as: D
+
   def dummy do
     Application.fetch_env!(:daidoquer2, :dummy_message)
   end
 
-  def sanitize(text) do
+  def sanitize(text, guild_id) do
     try do
       {:ok,
        text
+       |> replace_mention_with_display_name(guild_id)
+       |> replace_channel_id_with_its_name
        |> replace_with_alternatives
        |> replace_url_with_dummy
        |> replace_code_block_with_dummy
@@ -20,6 +24,28 @@ defmodule Daidoquer2.MessageSanitizer do
       e ->
         {:error, e}
     end
+  end
+
+  defp replace_mention_with_display_name(text, guild_id) do
+    Regex.replace(~r/<@!?([0-9]+)>/, text, fn whole, user_id_str ->
+      {user_id, ""} = user_id_str |> Integer.parse()
+
+      case D.display_name_of_user(guild_id, user_id) do
+        {:ok, name} -> "@" <> name
+        {:error, _} -> whole
+      end
+    end)
+  end
+
+  defp replace_channel_id_with_its_name(text) do
+    Regex.replace(~r/<#!?([0-9]+)>/, text, fn whole, chan_id_str ->
+      {chan_id, ""} = chan_id_str |> Integer.parse()
+
+      case D.channel(chan_id) do
+        {:ok, chan} -> "#" <> chan.name
+        {:error, _} -> whole
+      end
+    end)
   end
 
   defp replace_with_alternatives(text) do

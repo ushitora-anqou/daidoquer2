@@ -377,10 +377,7 @@ defmodule Daidoquer2.GuildSpeaker do
       end
 
     text =
-      case text
-           |> replace_mention_with_display_name(guild_id)
-           |> replace_channel_id_with_its_name()
-           |> Daidoquer2.MessageSanitizer.sanitize() do
+      case Daidoquer2.MessageSanitizer.sanitize(text, guild_id) do
         {:ok, text} -> text
         _ -> ""
       end
@@ -411,28 +408,6 @@ defmodule Daidoquer2.GuildSpeaker do
       |> List.foldl(content, fn sticker, content -> "#{content} #{sticker.name}" end)
 
     {content, msg.author.id}
-  end
-
-  defp replace_mention_with_display_name(text, guild_id) do
-    Regex.replace(~r/<@!?([0-9]+)>/, text, fn whole, user_id_str ->
-      {user_id, ""} = user_id_str |> Integer.parse()
-
-      case D.display_name_of_user(guild_id, user_id) do
-        {:ok, name} -> "@" <> name
-        {:error, _} -> whole
-      end
-    end)
-  end
-
-  defp replace_channel_id_with_its_name(text) do
-    Regex.replace(~r/<#!?([0-9]+)>/, text, fn whole, chan_id_str ->
-      {chan_id, ""} = chan_id_str |> Integer.parse()
-
-      case D.channel(chan_id) do
-        {:ok, chan} -> "#" <> chan.name
-        {:error, _} -> whole
-      end
-    end)
   end
 
   defp select_chara_from_uid(_, nil) do
