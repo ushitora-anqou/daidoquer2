@@ -44,8 +44,8 @@ defmodule Daidoquer2.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       # {:nostrum, "~> 0.6.1"},
       {:nostrum,
-       git: "https://github.com/ushitora-anqou/nostrum.git",
-       ref: "36257146ce920fc7698e24e88b3b63cc47bc1b3b"},
+       git: "https://github.com/Kraigie/nostrum.git",
+       ref: "bbcc5e2488cbf08bb0f0a0b3483cac988dcb966b"},
       {:httpoison, "~> 1.8.2"},
       {:temp, "~> 0.4"},
       # {:emojix, "~> 0.3"},
