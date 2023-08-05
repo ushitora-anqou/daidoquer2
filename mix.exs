@@ -17,7 +17,7 @@ defmodule Daidoquer2.MixProject do
     [
       app: :daidoquer2,
       version: "0.5.12",
-      elixir: "~> 1.11",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       releases: [
@@ -42,19 +42,14 @@ defmodule Daidoquer2.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      # {:nostrum, "~> 0.6.1"},
-      {:nostrum,
-       git: "https://github.com/Kraigie/nostrum.git",
-       ref: "bbcc5e2488cbf08bb0f0a0b3483cac988dcb966b"},
-      {:httpoison, "~> 1.8.2"},
+      {:nostrum, "~> 0.9.0-alpha2"},
+      {:httpoison, "~> 2.1.0"},
       {:temp, "~> 0.4"},
       # {:emojix, "~> 0.3"},
       {:emojix, git: "https://github.com/ushitora-anqou/emojix.git"},
       {:google_api_text_to_speech, "~> 0.15"},
-      {:goth, "~> 1.3.1"},
-      {:erlexec,
-       git: "https://github.com/saleyn/erlexec.git",
-       ref: "61801c5045c735882c48221dfd0cc0e89104d1b6"}
+      {:goth, "~> 1.4.1"},
+      {:erlexec, "~> 2.0"}
     ]
   end
 end
