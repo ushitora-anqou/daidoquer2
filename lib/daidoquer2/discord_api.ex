@@ -84,8 +84,15 @@ defmodule Daidoquer2.DiscordAPI do
   def display_name_of_user(guild_id, user_id) do
     # FIXME: Can use GuildCache?
     case Api.get_guild_member(guild_id, user_id) do
-      {:ok, member} -> {:ok, member.nick || member.user.username}
-      error -> error
+      {:ok, member} ->
+        if member.nick do
+          {:ok, member.nick}
+        else
+          {:ok, user!(member.user_id).username}
+        end
+
+      error ->
+        error
     end
   end
 
