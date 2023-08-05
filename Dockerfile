@@ -1,4 +1,4 @@
-FROM elixir:1.13 AS build
+FROM elixir:1.15 AS build
 ARG ARCH
 ARG DDQ2_VERSION
 ARG MIX_ENV=prod
