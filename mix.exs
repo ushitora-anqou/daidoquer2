@@ -42,7 +42,9 @@ defmodule Daidoquer2.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      {:nostrum, "~> 0.9.0-alpha2"},
+      {:nostrum,
+       git: "https://github.com/Kraigie/nostrum.git",
+       tag: "b2b660b2cf5212fd6b6a581d1626e135ac868053"},
       {:httpoison, "~> 2.1.0"},
       {:temp, "~> 0.4"},
       # {:emojix, "~> 0.3"},
